@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+requests
+pydantic[email]
+httpx
+beautifulsoup4
+python-docx          # imported as `docx` - used in main.py's _generate_docx
+reportlab            # used in main.py's _generate_pdf
+openpyxl             # used in main.py's _generate_xlsxpip install

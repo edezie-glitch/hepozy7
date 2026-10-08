@@ -1,0 +1,107 @@
+<!DOCTYPE html><html lang="en"><head>  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ec5b08">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="hepozy">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=4">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v=4">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png?v=4">
+<link rel="shortcut icon" href="/static/favicon.ico?v=4">
+<link rel="manifest" href="/static/site.webmanifest?v=4"><title> Hepozy  Create account</title><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"><style>*,*:before,*:after{box-sizing:border-box;margin:0;padding:0}html{--bg: #1a1a1a;--surface: #242424;--input-bg: #2e2e2e;--input-f: #363636;--orange: #e8600a;--orange-h: #d05508;--text: #efefef;--muted: #777;--muted2: #444;--error: #e05555;--radius: 9px}body{min-height:100vh;background:var(--surface);display:flex;align-items:center;justify-content:center;font-family:Sora,sans-serif;color:var(--text);padding:32px 20px calc(32px + 40px + env(safe-area-inset-bottom, 0px))}.card{width:100%;max-width:400px;background:var(--bg);border-radius:16px;padding:40px 36px 32px}    .card-logo {
+      display: block; width: 40px; height: 40px;
+      object-fit: contain; margin-bottom: 22px;
+    }.card h1{font-size:21px;font-weight:600;margin-bottom:5px;letter-spacing:-.3px}.card .sub{font-size:13px;color:var(--muted);margin-bottom:28px}.error-msg{display:none;background:#e055551a;color:var(--error);font-size:12.5px;padding:9px 12px;border-radius:var(--radius);margin-bottom:16px}.error-msg.show{display:block}.field{margin-bottom:16px}label{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}input{width:100%;background:var(--input-bg);border:none;outline:none;border-radius:var(--radius);padding:11px 13px;font-size:13.5px;font-family:Sora,sans-serif;color:var(--text);transition:background .14s}input:focus{background:var(--input-f)}input::placeholder{color:var(--muted2)}.btn{width:100%;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius);font-size:13.5px;font-weight:600;font-family:Sora,sans-serif;cursor:pointer;margin-top:6px;transition:background .14s;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px}.btn:hover{background:var(--orange-h)}.btn:disabled{opacity:.6;cursor:not-allowed}.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}@keyframes spin{to{transform:rotate(360deg)}}.footer-link{margin-top:20px;font-size:12.5px;color:var(--muted);text-align:center}.footer-link a{color:var(--orange);text-decoration:none;font-weight:500}.footer-link a:hover{text-decoration:underline}
+    .topnav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 14px calc(4px + env(safe-area-inset-bottom, 0px));
+      background: var(--bg); border-top: 1px solid var(--input-bg);
+    }
+    .topnav-brand { color: var(--text); text-decoration: none; font-weight: 600; font-size: 13px; letter-spacing: -0.2px; }
+    .topnav nav { display: flex; gap: 2px; }
+    .topnav-btn {
+      background: none; border: none; color: var(--muted);
+      font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500;
+      padding: 8px 10px; cursor: pointer;
+      transition: background 0.14s, color 0.14s;
+    }
+    .topnav-btn:hover { background: var(--input-bg); color: var(--text); }
+
+    .modal-bd { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: block; padding: 0; }
+    .modal-bd[hidden] { display: none; }
+    .modal-box {
+      width: 100%; height: 100%; overflow: auto; background: var(--bg);
+      padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(32px + env(safe-area-inset-bottom, 0px));
+    }
+    .modal-inner { max-width: 720px; margin: 0 auto; }
+    .modal-box h2 { font-size: 28px; font-weight: 600; margin-bottom: 24px; letter-spacing: -0.4px; }
+    .modal-x {
+      position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 20px; z-index: 101;
+      width: 40px; height: 40px; background: var(--input-bg); border: none; border-radius: 50%;
+      color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1;
+    }
+    .modal-x:hover { color: var(--text); background: var(--input-f); }
+    .modal-box details { border-top: 1px solid var(--input-bg); padding: 16px 0; }
+    .modal-box summary { cursor: pointer; font-size: 15px; font-weight: 500; }
+    .modal-box details p, .modal-box .dev-p { font-size: 14px; color: var(--muted); margin-top: 10px; line-height: 1.65; }</style></head><body>  <header class="topnav">
+    <a class="topnav-brand" href="login.html">Hepozy</a>
+    <nav>
+      <button type="button" class="topnav-btn" data-modal="faqModal">FAQs</button>
+      <button type="button" class="topnav-btn" data-modal="devModal">Developers</button>
+    </nav>
+  </header>
+
+  <div class="modal-bd" id="faqModal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="faqTitle">
+      <button type="button" class="modal-x" aria-label="Close">&times;</button>
+      <div class="modal-inner">
+        <h2 id="faqTitle">FAQ</h2>
+        <details>
+          <summary>Why do I have to verify my email?</summary>
+          <p>After creating an account you are sent to a verification step. You can't log in until your email is confirmed.</p>
+        </details>
+        <details>
+          <summary>What are the password requirements?</summary>
+          <p>At least 20 characters (a short sentence works well). Both password fields must match.</p>
+        </details>
+        <details>
+          <summary>Why can't I log in?</summary>
+          <p>Log in with your username, not your email. If you just registered, finish email verification first.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bd" id="devModal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+      <button type="button" class="modal-x" aria-label="Close">&times;</button>
+      <div class="modal-inner">
+        <h2 id="devTitle">Developers</h2>
+        <p class="dev-p">Edezie Agaled<br>Zeius Aben</p>
+      </div>
+    </div>
+  </div><div class="card"><img class="card-logo" src="hepozy.jpg" alt="Hepozy" width="40" height="40" onerror="this.style.visibility='hidden'"><h1>Create account</h1><p class="sub">Sign up to get started.</p><div class="error-msg" id="errorMsg"></div><form id="form"><div class="field"><label>Email</label> <input type="email" id="email" placeholder="Enter your email" required autocomplete="email"></div><div class="field"><label>Username</label> <input type="text" id="username" placeholder="Choose a username" required autocomplete="username"></div><div class="field"><label>Password</label> <input type="password" id="password" placeholder="At least 20 characters" maxlength="72" required autocomplete="new-password"></div><div class="field"><label>Confirm Password</label> <input type="password" id="confirm" placeholder="Repeat your password" required autocomplete="new-password"></div><button type="submit" class="btn" id="btn"> <span id="btnText">Create account</span> <span class="spinner" id="spinner"></span> </button></form><div class="footer-link">Already have an account? <a href="login.html">Log in</a></div></div><script>    (() => {
+      let last = null;
+      const close = m => { m.hidden = true; if (last) last.focus(); };
+      document.querySelectorAll('[data-modal]').forEach(b => b.addEventListener('click', () => {
+        last = b;
+        const m = document.getElementById(b.dataset.modal);
+        m.hidden = false;
+        m.querySelector('.modal-x').focus();
+      }));
+      document.querySelectorAll('.modal-bd').forEach(m => {
+        m.querySelector('.modal-x').addEventListener('click', () => close(m));
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-bd:not([hidden])').forEach(close);
+      });
+    })();const API=["localhost","127.0.0.1"].includes(location.hostname)?"https://hepozy.com":"";
+/* CHANGED: turns a list of server errors into one sentence. It used to sit at the very end of the
+   script, where it ran on page load with no data and caused a console error. Now it is used inside
+   the signup handler below. */
+const fmt = d => Array.isArray(d)
+  ? d.map(x => String(x.msg || x).replace(/^Value error, /, "")).join(". ")
+  : (typeof d === "string" ? d : "");
+localStorage.getItem("hepozy_token")&&(window.location.href="home.html"),document.getElementById("form").addEventListener("submit",async i=>{i.preventDefault();const t=document.getElementById("errorMsg"),s=document.getElementById("btn"),o=document.getElementById("btnText"),a=document.getElementById("spinner");t.classList.remove("show"),s.disabled=!0,o.style.display="none",a.style.display="inline-block";const l=document.getElementById("email").value.trim(),c=document.getElementById("username").value.trim(),n=document.getElementById("password").value,r=document.getElementById("confirm").value,e=()=>{s.disabled=!1,o.style.display="inline",a.style.display="none"};if(n.length<20){t.textContent="Password must be at least 20 characters.",t.classList.add("show"),e();return}if(n!==r){t.textContent="Passwords do not match.",t.classList.add("show"),e();return}try{const d=await fetch(`${API}/auth/signup`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:l,username:c,password:n})}),m=await d.json();if(!d.ok){t.textContent=fmt(m.detail)||"Sign up failed.",t.classList.add("show"),e();return}sessionStorage.setItem("pending_verification_email",l),window.location.href="verifypend.html"}catch{t.textContent="Unable to connect to server.",t.classList.add("show"),e()}});</script></body></html>
