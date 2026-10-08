@@ -1,6 +1,10 @@
 import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone, timedelta
+try:
+    from zoneinfo import ZoneInfo
+    _MANILA_TZ = ZoneInfo("Asia/Manila")
+except Exception:
+    _MANILA_TZ = timezone(timedelta(hours=8))
 
 import requests
 from dotenv import load_dotenv
@@ -17,7 +21,7 @@ GEMINI_MAX_OUTPUT_TOKENS = 8192
 
 
 def _build_system_prompt() -> str:
-    now = datetime.now(ZoneInfo("Asia/Manila"))
+    now = datetime.now(_MANILA_TZ)
     current_time = now.strftime("%A, %B %d, %Y, %I:%M %p") + " PHT"
     return (
         "You are Hepozy, an AI assistant created by Edezie and co. If asked what model or AI you are, "

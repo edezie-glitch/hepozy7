@@ -1,10 +1,14 @@
 import os
+import sys
 import uuid
 import json
 import re
 import asyncio
 from pathlib import Path
- 
+
+# Ensure orchestrator directory is in sys.path for local module imports
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import time
 import base64
 import hmac

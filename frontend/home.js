@@ -1,4 +1,4 @@
-let TOKEN=localStorage.getItem("hepozy_token");const API=["localhost","127.0.0.1"].includes(location.hostname)?"https://hepozy.com":"",CHAT_SEND_TIMEOUT_MS=12e4,LOADING_VIDEO="123.mp4",LOADING_VIDEO_WIDTH=27,USERNAME=localStorage.getItem("hepozy_username")||"User",USER_ID=localStorage.getItem("hepozy_user_id");TOKEN||(window.location.href="login.html");(function(){
+let TOKEN=localStorage.getItem("hepozy_token");const API="",CHAT_SEND_TIMEOUT_MS=12e4,LOADING_VIDEO="123.mp4",LOADING_VIDEO_WIDTH=27,USERNAME=localStorage.getItem("hepozy_username")||"User",USER_ID=localStorage.getItem("hepozy_user_id");TOKEN||(window.location.href="login.html");(function(){
 const f=window.fetch;
 let refreshing=null;
 const KEYS=["hepozy_token","hepozy_refresh","hepozy_username","hepozy_user_id"];

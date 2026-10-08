@@ -8,4 +8,6 @@ httpx
 beautifulsoup4
 python-docx          # imported as `docx` - used in main.py's _generate_docx
 reportlab            # used in main.py's _generate_pdf
-openpyxl             # used in main.py's _generate_xlsxpip install
+openpyxl             # used in main.py's _generate_xlsx
+tzdata               # IANA timezones on Windows (Asia/Manila)
+pypdf                # used in attachments.py to extract text from uploaded PDFs

@@ -1,6 +1,10 @@
 import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone, timedelta
+try:
+    from zoneinfo import ZoneInfo
+    _MANILA_TZ = ZoneInfo("Asia/Manila")
+except Exception:
+    _MANILA_TZ = timezone(timedelta(hours=8))
 
 import requests
 from dotenv import load_dotenv
@@ -34,7 +38,7 @@ def _build_system_prompt() -> str:
     real current time has to be injected each request or every answer about
     "now" is a guess. Asia/Manila = Philippines time (PHT, UTC+8, no DST).
     """
-    now = datetime.now(ZoneInfo("Asia/Manila"))
+    now = datetime.now(_MANILA_TZ)
     current_time = now.strftime("%A, %B %d, %Y, %I:%M %p") + " PHT"
     return (
         "You are Hepozy, an AI assistant created by Edezie and co. If asked what model or AI you are, "
