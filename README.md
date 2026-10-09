@@ -165,6 +165,24 @@ python orchestrator/crawler/scheduler.py
 
 ---
 
+## 🛠️ Development & Code Quality
+
+You can use [Ruff](https://docs.astral.sh/ruff/) through `uvx` to lint and format the codebase without installing extra packages into your environment:
+
+```bash
+# Check code for lint errors and unused imports
+uvx ruff check .
+
+# Automatically fix safe lint issues
+uvx ruff check --fix .
+
+# Format Python source files
+uvx ruff format .
+```
+
+---
+
 ## 📄 License
 
 MIT
+
