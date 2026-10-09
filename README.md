@@ -50,7 +50,7 @@ hepozy7/
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-- **Python 3.10+**
+- **Python 3.10+** (or **[uv](https://docs.astral.sh/uv/)**)
 - A **[Supabase](https://supabase.com)** project
 - API keys from **[Groq Console](https://console.groq.com)** and **[Google AI Studio](https://aistudio.google.com)**
 
@@ -96,7 +96,19 @@ LOCAL_DEV=1
 
 ### 4. Installation
 
-Create and activate a virtual environment, then install dependencies:
+#### Using `uv` (Recommended)
+`uv` creates virtual environments and installs dependencies blazingly fast:
+
+```bash
+# Create virtual environment
+uv venv
+
+# Install requirements
+uv pip install -r orchestrator/requirements.txt
+```
+
+<details>
+<summary>Alternative: Using standard pip</summary>
 
 **On Windows (PowerShell):**
 ```powershell
@@ -111,16 +123,26 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r orchestrator/requirements.txt
 ```
+</details>
 
 ---
 
 ### 5. Running the Application
 
-Start the Uvicorn web server from the project root:
+#### Using `uv` (Recommended)
+`uv run` automatically picks up the virtual environment:
+
+```bash
+uv run uvicorn main:app --app-dir orchestrator --reload --port 8000
+```
+
+<details>
+<summary>Alternative: Using standard python</summary>
 
 ```bash
 python -m uvicorn orchestrator.main:app --reload --port 8000
 ```
+</details>
 
 - **Web App**: [http://localhost:8000](http://localhost:8000) *(redirects to login)*
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs) *(when `ENABLE_DOCS=1`)*
@@ -131,6 +153,12 @@ python -m uvicorn orchestrator.main:app --reload --port 8000
 
 If you are using background web crawling:
 
+**Using `uv`:**
+```bash
+uv run --directory orchestrator python crawler/scheduler.py
+```
+
+**Using standard python:**
 ```bash
 python orchestrator/crawler/scheduler.py
 ```
