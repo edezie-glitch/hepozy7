@@ -15,6 +15,15 @@ env/
 # Generated files
 generated_files/
 
+# Node & Frontend
+node_modules/
+.next/
+/frontend-next/.next/
+/frontend-next/node_modules/
+dist/
+build/
+coverage/
+
 # OS artifacts
 Thumbs.db
 desktop.ini
