@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 describe('Application End-to-End Smoke Test', () => {
   it('compiles, renders complete home shell, and toggles theme cleanly without crashing', async () => {
+    document.documentElement.className = '';
+
     render(
       <ThemeProvider
         attribute="class"
@@ -32,11 +34,16 @@ describe('Application End-to-End Smoke Test', () => {
     const toggle = screen.getByRole('button', { name: /toggle theme/i });
     expect(toggle).toBeInTheDocument();
 
+    // Toggle to dark theme
     fireEvent.click(toggle);
-
-    // Verify interaction completes without throwing
     await waitFor(() => {
-      expect(toggle).toBeInTheDocument();
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+
+    // Toggle back to light theme
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
     });
   });
 });

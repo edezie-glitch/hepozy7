@@ -69,34 +69,24 @@ async function main() {
   fs.writeFileSync(schemaDtsPath, typesOutput, 'utf-8');
   console.log(`✓ Generated TypeScript definitions in ${path.relative(rootDir, schemaDtsPath)}`);
 
-  // Also maintain api.d.ts re-export for backwards compatibility
-  const apiDtsPath = path.join(typesDir, 'api.d.ts');
-  fs.writeFileSync(apiDtsPath, "export * from './schema';\n", 'utf-8');
+  // Dynamically export helper types for all schemas in components.schemas
+  const schemaNames = Object.keys(schema.components?.schemas || {});
+  const schemaTypeExports = schemaNames
+    .map((name) => `export type ${name} = components['schemas']['${name}'];`)
+    .join('\n');
 
-  // Generate convenient type helpers
   const helperContent = `// Auto-generated helper types from OpenAPI specification
 import type { components, paths } from './schema';
 
 export type { components, paths };
 
-// Schemas
-export type ChatRequest = components['schemas']['ChatRequest'];
-export type ChatResponse = components['schemas']['ChatResponse'];
-export type AuthResponse = components['schemas']['AuthResponse'];
-export type LoginRequest = components['schemas']['LoginRequest'];
-export type SignupRequest = components['schemas']['SignupRequest'];
-export type SignupResponse = components['schemas']['SignupResponse'];
-export type RefreshRequest = components['schemas']['RefreshRequest'];
-export type RefreshResponse = components['schemas']['RefreshResponse'];
-export type StopRequest = components['schemas']['StopRequest'];
-export type EditRequest = components['schemas']['EditRequest'];
-export type CrawlRequest = components['schemas']['CrawlRequest'];
-export type TitleUpdate = components['schemas']['TitleUpdate'];
+// Dynamically generated schema types
+${schemaTypeExports}
 `;
 
   const helperPath = path.join(typesDir, 'api.ts');
   fs.writeFileSync(helperPath, helperContent, 'utf-8');
-  console.log(`✓ Generated client type helpers in ${path.relative(rootDir, helperPath)}`);
+  console.log(`✓ Generated client type helpers in ${path.relative(rootDir, helperPath)} (${schemaNames.length} schemas)`);
 }
 
 main().catch((err) => {
