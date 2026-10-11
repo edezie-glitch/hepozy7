@@ -18,4 +18,4 @@ In modern UI ecosystems (including shadcn), Base UI (`@base-ui/react`) has emerg
 ## Consequences
 - `@radix-ui/react-slot` is replaced with `@base-ui/react`.
 - Components such as `Button` utilize Base UI primitives and provide both the native `render` prop and an `asChild` adapter for backwards compatibility.
-- Future primitives (Dialog, DropdownMenu, Tooltip, Popover) will build on `@base-ui/react` primitives styled with Tailwind CSS v4 and brand tokens.
+- Future primitives (Dialog, DropdownMenu, Tooltip, Popover) will build on `@base-ui/react` primitives via shadcn/ui, styled with Tailwind CSS v4 and brand tokens.
