@@ -12,7 +12,7 @@
     "codegen:api": "node scripts/codegen-api.mjs"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.4.0",
+    "@base-ui/react": "^1.9.0",
     "@t3-oss/env-nextjs": "^0.13.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

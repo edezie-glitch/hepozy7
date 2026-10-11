@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Slot } from '@radix-ui/react-slot';
+import { Button as BaseButton } from '@base-ui/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
@@ -34,20 +34,45 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className'>,
     VariantProps<typeof buttonVariants> {
+  className?: string;
+  /**
+   * Base UI render prop to render a custom element or component
+   */
+  render?: BaseButton.Props['render'];
+  /**
+   * Compatibility prop: if true, renders children as the root element using Base UI render prop
+   */
   asChild?: boolean;
+  /**
+   * Whether the element behaves as a native button (defaults to false when rendering an anchor or non-button element)
+   */
+  nativeButton?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button';
+  ({ className, variant, size, render, asChild = false, nativeButton, children, ...props }, ref) => {
+    const effectiveRender = render ?? (asChild && React.isValidElement(children) ? children : undefined);
+    const content = asChild && React.isValidElement(children) ? undefined : children;
+
+    const isNonButton =
+      React.isValidElement(effectiveRender) &&
+      typeof effectiveRender.type === 'string' &&
+      effectiveRender.type !== 'button';
+
+    const effectiveNativeButton = nativeButton ?? (isNonButton ? false : undefined);
+
     return (
-      <Comp
+      <BaseButton
         className={cn(buttonVariants({ variant, size, className }))}
+        render={effectiveRender}
+        nativeButton={effectiveNativeButton}
         ref={ref}
         {...props}
-      />
+      >
+        {content}
+      </BaseButton>
     );
   }
 );

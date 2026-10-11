@@ -44,7 +44,7 @@ Build a modern, type-safe frontend in `frontend-next/` using the Next.js App Rou
 - **Authentication**: Utilize `@supabase/ssr` with cookie-based session management in middleware, forwarding bearer JWTs in HTTP headers to FastAPI. Forms use `react-hook-form` with `zod` schemas.
 - **State Management**: Use TanStack Query for server state caching (conversations, quotas, user profile) and Zustand (`useChatStore`) for ephemeral chat interactions (staged attachments, drafts, active AbortController, reply quotes).
 - **Markdown & Code UI**: Use `react-markdown` with `remark-gfm` and syntax highlighting. Wrap code blocks with copy-to-clipboard buttons and tables with scrollable wrappers.
-- **Design Tokens & Theming**: Style accessible Radix UI primitives via shadcn/ui, configured with Hepozy's brand orange (`#ff7300`) as primary accent, supporting dark and light themes through `next-themes`.
+- **Design Tokens & Theming**: Style accessible Base UI primitives (`@base-ui/react`) with Tailwind CSS and Hepozy's brand orange (`#ff7300`) as primary accent, supporting dark and light themes through `next-themes`.
 
 ## Testing Decisions
 
