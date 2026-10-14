@@ -18,6 +18,8 @@ describe('ChatWorkspace Component Integration', () => {
       abortController: null,
       stagedAttachments: [],
       attachmentError: null,
+      clarificationPrompt: null,
+      quotaExceeded: null,
     });
   });
 
@@ -345,6 +347,160 @@ describe('ChatWorkspace Component Integration', () => {
     // Attachments should render in user message bubble history
     expect(screen.getByTestId('document-attachment')).toHaveTextContent('data.csv');
     expect(screen.getByTestId('image-attachment')).toBeInTheDocument();
+  });
+
+  it('renders clarification prompt with suggested reply pills when needs_clarification is active, and submits chosen pill into conversation', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+    const sendSpy = vi
+      .spyOn(chatApi, 'sendChatMessage')
+      .mockResolvedValueOnce({
+        reply: 'Which type of agreement would you like me to draft?',
+        conversation_id: 'conv-1',
+        assistant_message_id: 'asst-clarify-1',
+        needs_clarification: true,
+        suggested_replies: ['Employment Agreement', 'NDA Non-Disclosure', 'Consulting Agreement'],
+        quota_exceeded: false,
+      })
+      .mockResolvedValueOnce({
+        reply: 'Here is your drafted employment agreement template.',
+        conversation_id: 'conv-1',
+        assistant_message_id: 'asst-clarify-2',
+        needs_clarification: false,
+        quota_exceeded: false,
+      });
+
+    render(<ChatWorkspace conversationId="conv-1" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Draft me an agreement{enter}');
+
+    // Clarification question should be in chat
+    expect(await screen.findByText('Which type of agreement would you like me to draft?')).toBeInTheDocument();
+
+    // Clarification Prompt component should be rendered with suggested reply pills
+    expect(screen.getByTestId('clarification-prompt')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Employment Agreement' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'NDA Non-Disclosure' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Consulting Agreement' })).toBeInTheDocument();
+
+    // Clicking a pill submits the answer into the current conversation
+    await user.click(screen.getByRole('button', { name: 'Employment Agreement' }));
+
+    // Clarification prompt is dismissed
+    expect(screen.queryByTestId('clarification-prompt')).not.toBeInTheDocument();
+
+    // User message is submitted into conversation
+    expect(await screen.findByText('Employment Agreement')).toBeInTheDocument();
+
+    // Second call to sendChatMessage has been made with chosen clarification
+    await waitFor(() => {
+      expect(sendSpy).toHaveBeenCalledTimes(2);
+      expect(sendSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          message: 'Employment Agreement',
+          conversation_id: 'conv-1',
+        }),
+        expect.any(AbortSignal)
+      );
+    });
+
+    // Assistant response to clarification appears
+    expect(await screen.findByText('Here is your drafted employment agreement template.')).toBeInTheDocument();
+  });
+
+  it('submits freeform clarification into the current conversation', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+    const sendSpy = vi
+      .spyOn(chatApi, 'sendChatMessage')
+      .mockResolvedValueOnce({
+        reply: 'Which format do you prefer?',
+        conversation_id: 'conv-1',
+        assistant_message_id: 'asst-clarify-1',
+        needs_clarification: true,
+        suggested_replies: ['PDF', 'Word'],
+        quota_exceeded: false,
+      })
+      .mockResolvedValueOnce({
+        reply: 'Exported as Markdown document.',
+        conversation_id: 'conv-1',
+        assistant_message_id: 'asst-clarify-2',
+        needs_clarification: false,
+        quota_exceeded: false,
+      });
+
+    render(<ChatWorkspace conversationId="conv-1" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Format options?{enter}');
+
+    expect(await screen.findByText('Which format do you prefer?')).toBeInTheDocument();
+    expect(screen.getByTestId('clarification-prompt')).toBeInTheDocument();
+
+    // Type into freeform input and submit
+    const freeformInput = screen.getByTestId('clarification-freeform-input');
+    await user.type(freeformInput, 'Markdown please{enter}');
+
+    expect(screen.queryByTestId('clarification-prompt')).not.toBeInTheDocument();
+    expect(await screen.findByText('Markdown please')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(sendSpy).toHaveBeenCalledTimes(2);
+      expect(sendSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          message: 'Markdown please',
+          conversation_id: 'conv-1',
+        }),
+        expect.any(AbortSignal)
+      );
+    });
+  });
+
+  it('triggers quota exceeded modal dialog with countdown time and disables send controls until dismissed', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+    const futureReset = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+    vi.spyOn(chatApi, 'sendChatMessage').mockResolvedValueOnce({
+      reply: "You've used all your messages for now.",
+      conversation_id: 'conv-1',
+      assistant_message_id: 'asst-quota-1',
+      needs_clarification: false,
+      quota_exceeded: true,
+      quota_reset_at: futureReset,
+    });
+
+    render(<ChatWorkspace conversationId="conv-1" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Tell me more{enter}');
+
+    // Assistant reply displayed in message list
+    expect(await screen.findByText("You've used all your messages for now.")).toBeInTheDocument();
+
+    // Quota Exceeded modal is displayed with countdown
+    expect(await screen.findByRole('heading', { name: /message quota exceeded/i })).toBeInTheDocument();
+    expect(screen.getByText(/you can send again in 3 hours/i)).toBeInTheDocument();
+
+    // Send controls are disabled while quota modal is open (dialog sets aria-hidden on background)
+    expect(screen.getByRole('textbox', { hidden: true })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /attach files/i, hidden: true })).toBeDisabled();
+
+    // Dismiss modal via close button
+    const closeBtn = screen.getByRole('button', { name: /close quota notification/i });
+    await user.click(closeBtn);
+
+    // Modal is dismissed
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /message quota exceeded/i })).not.toBeInTheDocument();
+    });
+
+    // Send controls are re-enabled
+    expect(screen.getByRole('textbox')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /attach files/i })).not.toBeDisabled();
   });
 });
 

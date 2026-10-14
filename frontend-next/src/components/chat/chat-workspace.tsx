@@ -11,6 +11,8 @@ import {
 } from '@/lib/api/chat';
 import { MessageItem } from '@/components/chat/message-item';
 import { ChatInput } from '@/components/chat/chat-input';
+import { ClarificationPrompt } from '@/components/chat/clarification-prompt';
+import { QuotaExceededModal } from '@/components/chat/quota-exceeded-modal';
 import { serializeAttachment } from '@/lib/attachments';
 import { Sparkles } from 'lucide-react';
 
@@ -40,6 +42,13 @@ export function ChatWorkspace({
   const setAbortController = useChatStore((state) => state.setAbortController);
   const stopGeneration = useChatStore((state) => state.stopGeneration);
 
+  const clarificationPrompt = useChatStore((state) => state.clarificationPrompt);
+  const setClarificationPrompt = useChatStore((state) => state.setClarificationPrompt);
+  const clearClarificationPrompt = useChatStore((state) => state.clearClarificationPrompt);
+  const quotaExceeded = useChatStore((state) => state.quotaExceeded);
+  const setQuotaExceeded = useChatStore((state) => state.setQuotaExceeded);
+  const clearQuotaExceeded = useChatStore((state) => state.clearQuotaExceeded);
+
   // Scroll to bottom helper
   const scrollToBottom = React.useCallback(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
@@ -53,6 +62,8 @@ export function ChatWorkspace({
       queueMicrotask(() => {
         if (active) {
           setMessages([]);
+          clearClarificationPrompt();
+          clearQuotaExceeded();
         }
       });
       return () => {
@@ -71,6 +82,8 @@ export function ChatWorkspace({
         if (active) {
           setMessages(history);
           setLatestAnimatedAssistantMessageId(null);
+          clearClarificationPrompt();
+          clearQuotaExceeded();
         }
       })
       .catch((err) => {
@@ -85,7 +98,7 @@ export function ChatWorkspace({
     return () => {
       active = false;
     };
-  }, [conversationId]);
+  }, [conversationId, clearClarificationPrompt, clearQuotaExceeded]);
 
   // Scroll to bottom on new messages or during generation
   React.useEffect(() => {
@@ -135,6 +148,7 @@ export function ChatWorkspace({
       setMessages((prev) => [...prev, userMsg]);
     }
     resetInput();
+    clearClarificationPrompt();
 
     const controller = new AbortController();
     const requestId =
@@ -159,6 +173,23 @@ export function ChatWorkspace({
         controller.signal
       );
 
+      // Handle message quota exceeded safeguard
+      if (response.quota_exceeded) {
+        const asstId = response.assistant_message_id || `asst-quota-${Date.now()}`;
+        const quotaMsg: ChatMessageItem = {
+          id: asstId,
+          role: 'assistant',
+          content: response.reply || "You've used all your messages for now.",
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, quotaMsg]);
+        setIsGenerating(false);
+        setActiveRequestId(null);
+        setAbortController(null);
+        setQuotaExceeded({ resetAt: response.quota_reset_at || null });
+        return;
+      }
+
       // If backend returned a persisted user_message_id, update it
       if (response.user_message_id && options?.appendUserMessage !== false) {
         setMessages((prev) =>
@@ -176,6 +207,20 @@ export function ChatWorkspace({
         download_url: response.download_url,
         file_name: response.file_name,
       };
+
+      // Handle conversational clarification prompts
+      if (
+        response.needs_clarification &&
+        response.suggested_replies &&
+        response.suggested_replies.length > 0
+      ) {
+        setClarificationPrompt({
+          suggestedReplies: response.suggested_replies,
+          assistantMessageId: asstId,
+        });
+      } else {
+        clearClarificationPrompt();
+      }
 
       setLatestAnimatedAssistantMessageId(asstId);
       setMessages((prev) => [...prev, assistantMsg]);
@@ -201,6 +246,11 @@ export function ChatWorkspace({
 
   const handleSubmitMessage = async (messageText: string) => {
     await executeTurn(messageText, replyingTo?.text);
+  };
+
+  const handleClarificationSubmit = async (answerText: string) => {
+    clearClarificationPrompt();
+    await executeTurn(answerText);
   };
 
   const handleStop = () => {
@@ -313,10 +363,33 @@ export function ChatWorkspace({
 
       {/* Sticky Bottom Input Bar */}
       <div className="border-t border-border/60 bg-background/95 backdrop-blur-xs p-3 sm:p-4">
-        <div className="mx-auto max-w-4xl">
-          <ChatInput onSubmit={handleSubmitMessage} onStop={handleStop} />
+        <div className="mx-auto max-w-4xl space-y-2">
+          {clarificationPrompt && (
+            <ClarificationPrompt
+              suggestedReplies={clarificationPrompt.suggestedReplies}
+              onSubmit={handleClarificationSubmit}
+              onDismiss={clearClarificationPrompt}
+              disabled={Boolean(quotaExceeded)}
+            />
+          )}
+          <ChatInput
+            onSubmit={handleSubmitMessage}
+            onStop={handleStop}
+            disabled={Boolean(quotaExceeded)}
+          />
         </div>
       </div>
+
+      {/* Quota Exceeded Safeguard Modal */}
+      <QuotaExceededModal
+        open={Boolean(quotaExceeded)}
+        onOpenChange={(open) => {
+          if (!open) {
+            clearQuotaExceeded();
+          }
+        }}
+        quotaResetAt={quotaExceeded?.resetAt}
+      />
     </div>
   );
 }

@@ -10,6 +10,8 @@ describe('useChatStore', () => {
       isGenerating: false,
       activeRequestId: null,
       abortController: null,
+      clarificationPrompt: null,
+      quotaExceeded: null,
     });
   });
 
@@ -103,6 +105,38 @@ describe('useChatStore', () => {
     useChatStore.getState().clearStagedAttachments();
     expect(useChatStore.getState().stagedAttachments).toEqual([]);
     expect(useChatStore.getState().attachmentError).toBeNull();
+  });
+
+  it('manages clarificationPrompt state and clearing', () => {
+    expect(useChatStore.getState().clarificationPrompt).toBeNull();
+
+    useChatStore.getState().setClarificationPrompt({
+      suggestedReplies: ['Option A', 'Option B'],
+      assistantMessageId: 'asst-123',
+    });
+
+    expect(useChatStore.getState().clarificationPrompt).toEqual({
+      suggestedReplies: ['Option A', 'Option B'],
+      assistantMessageId: 'asst-123',
+    });
+
+    useChatStore.getState().clearClarificationPrompt();
+    expect(useChatStore.getState().clarificationPrompt).toBeNull();
+  });
+
+  it('manages quotaExceeded state and clearing', () => {
+    expect(useChatStore.getState().quotaExceeded).toBeNull();
+
+    useChatStore.getState().setQuotaExceeded({
+      resetAt: '2026-10-14T23:55:00Z',
+    });
+
+    expect(useChatStore.getState().quotaExceeded).toEqual({
+      resetAt: '2026-10-14T23:55:00Z',
+    });
+
+    useChatStore.getState().clearQuotaExceeded();
+    expect(useChatStore.getState().quotaExceeded).toBeNull();
   });
 });
 

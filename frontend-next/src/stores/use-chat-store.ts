@@ -10,6 +10,15 @@ export interface ReplyingToState {
   messageId?: string;
 }
 
+export interface ClarificationPromptState {
+  suggestedReplies: string[];
+  assistantMessageId?: string;
+}
+
+export interface QuotaExceededState {
+  resetAt: string | null;
+}
+
 export interface ChatStoreState {
   inputDraft: string;
   inputPrompt: string;
@@ -22,6 +31,10 @@ export interface ChatStoreState {
   // Multimodal Attachments Staging
   stagedAttachments: StagedAttachment[];
   attachmentError: string | null;
+
+  // Conversational Clarification & Quota Safeguards
+  clarificationPrompt: ClarificationPromptState | null;
+  quotaExceeded: QuotaExceededState | null;
 
   setInputDraft: (draft: string) => void;
   setInputPrompt: (prompt: string) => void;
@@ -44,6 +57,11 @@ export interface ChatStoreState {
   removeStagedAttachment: (id: string) => void;
   clearStagedAttachments: (revokeUrls?: boolean) => void;
   setAttachmentError: (error: string | null) => void;
+
+  setClarificationPrompt: (prompt: ClarificationPromptState | null) => void;
+  clearClarificationPrompt: () => void;
+  setQuotaExceeded: (quota: QuotaExceededState | null) => void;
+  clearQuotaExceeded: () => void;
 }
 
 export const useChatStore = create<ChatStoreState>((set, get) => ({
@@ -56,6 +74,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   abortController: null,
   stagedAttachments: [],
   attachmentError: null,
+  clarificationPrompt: null,
+  quotaExceeded: null,
 
   setInputDraft: (draft) => set({ inputDraft: draft, inputPrompt: draft }),
   setInputPrompt: (prompt) => set({ inputDraft: prompt, inputPrompt: prompt }),
@@ -158,6 +178,11 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   },
 
   setAttachmentError: (error: string | null) => set({ attachmentError: error }),
+
+  setClarificationPrompt: (prompt) => set({ clarificationPrompt: prompt }),
+  clearClarificationPrompt: () => set({ clarificationPrompt: null }),
+  setQuotaExceeded: (quota) => set({ quotaExceeded: quota }),
+  clearQuotaExceeded: () => set({ quotaExceeded: null }),
 
   resetInput: (revokeUrls = false) => {
     get().clearStagedAttachments(revokeUrls);
