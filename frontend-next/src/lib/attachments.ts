@@ -13,7 +13,6 @@ export const ALLOWED_DOC_EXTENSIONS = [
   '.txt',
   '.csv',
   '.xlsx',
-  '.md',
 ] as const;
 
 export const ALLOWED_IMAGE_TYPES = [
@@ -29,17 +28,24 @@ export const ALLOWED_IMAGE_EXTENSIONS = [
   '.webp',
 ] as const;
 
+export const ACCEPTED_FILE_EXTENSIONS = [
+  ...ALLOWED_DOC_EXTENSIONS,
+  ...ALLOWED_IMAGE_EXTENSIONS,
+].join(',');
+
 export interface AttachmentValidationResult {
   valid: boolean;
   error?: string;
 }
 
-export interface AttachmentPayload {
+export interface SerializedAttachment {
   [key: string]: unknown;
   name: string;
   type: string;
   data: string;
 }
+
+export type AttachmentPayload = SerializedAttachment;
 
 export interface StagedAttachment {
   id: string;
@@ -100,9 +106,9 @@ export function validateAttachment(file: File): AttachmentValidationResult {
 }
 
 /**
- * Encodes a File into a base64 AttachmentPayload suitable for FastAPI /chat.
+ * Serializes a File into a base64 SerializedAttachment suitable for FastAPI /chat.
  */
-export function fileToAttachmentPayload(file: File): Promise<AttachmentPayload> {
+export function serializeAttachment(file: File): Promise<SerializedAttachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -120,3 +126,5 @@ export function fileToAttachmentPayload(file: File): Promise<AttachmentPayload> 
     reader.readAsDataURL(file);
   });
 }
+
+export const fileToAttachmentPayload = serializeAttachment;

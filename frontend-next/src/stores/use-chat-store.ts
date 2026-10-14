@@ -35,14 +35,14 @@ export interface ChatStoreState {
     onStop?: (params: { requestId: string; shownText?: string }) => void,
     shownText?: string
   ) => void;
-  resetInput: () => void;
+  resetInput: (revokeUrls?: boolean) => void;
 
   stageFiles: (files: File[]) => {
     added: StagedAttachment[];
     rejected: { file: File; reason: string }[];
   };
   removeStagedAttachment: (id: string) => void;
-  clearStagedAttachments: () => void;
+  clearStagedAttachments: (revokeUrls?: boolean) => void;
   setAttachmentError: (error: string | null) => void;
 }
 
@@ -114,7 +114,10 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
     set((state) => ({
       stagedAttachments: [...state.stagedAttachments, ...added],
-      attachmentError: rejected.length > 0 ? rejected[0].reason : state.attachmentError,
+      attachmentError:
+        rejected.length > 0
+          ? rejected.map((r) => r.reason).join('; ')
+          : state.attachmentError,
     }));
 
     return { added, rejected };
@@ -135,14 +138,16 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     });
   },
 
-  clearStagedAttachments: () => {
+  clearStagedAttachments: (revokeUrls = true) => {
     const { stagedAttachments } = get();
-    for (const item of stagedAttachments) {
-      if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
-        try {
-          URL.revokeObjectURL(item.previewUrl);
-        } catch {
-          // ignore
+    if (revokeUrls) {
+      for (const item of stagedAttachments) {
+        if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+          try {
+            URL.revokeObjectURL(item.previewUrl);
+          } catch {
+            // ignore
+          }
         }
       }
     }
@@ -154,23 +159,12 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   setAttachmentError: (error: string | null) => set({ attachmentError: error }),
 
-  resetInput: () => {
-    const { stagedAttachments } = get();
-    for (const item of stagedAttachments) {
-      if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
-        try {
-          URL.revokeObjectURL(item.previewUrl);
-        } catch {
-          // ignore
-        }
-      }
-    }
+  resetInput: (revokeUrls = false) => {
+    get().clearStagedAttachments(revokeUrls);
     set({
       inputDraft: '',
       inputPrompt: '',
       replyingTo: null,
-      stagedAttachments: [],
-      attachmentError: null,
     });
   },
 }));

@@ -206,7 +206,7 @@ export function MessageItem({
             {message.attachments && message.attachments.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {message.attachments.map((att, idx) => {
-                  const isImg = isImageFile(att.type || att.name);
+                  const isImg = isImageFile({ type: att.type, name: att.name });
                   const imgSrc =
                     att.url ||
                     (att.data

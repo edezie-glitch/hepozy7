@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatInput } from '@/components/chat/chat-input';
 import { useChatStore } from '@/stores/use-chat-store';
+import { MAX_ATTACHMENT_SIZE } from '@/lib/attachments';
 
 describe('ChatInput Component', () => {
   beforeEach(() => {
@@ -181,5 +182,39 @@ describe('ChatInput Component', () => {
     expect(await screen.findByText('analysis.csv')).toBeInTheDocument();
     expect(screen.getByTestId('staged-preview-strip')).toBeInTheDocument();
   });
+
+  it('rejects files exceeding 5MB via file selector with clear error notification', () => {
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const fileInput = screen.getByTestId('attachment-file-input') as HTMLInputElement;
+    const oversizedFile = new File([new Uint8Array(MAX_ATTACHMENT_SIZE + 2048)], 'big-archive.pdf', {
+      type: 'application/pdf',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+
+    const errorAlert = screen.getByTestId('attachment-error-alert');
+    expect(errorAlert).toBeInTheDocument();
+    expect(errorAlert).toHaveTextContent(/big-archive\.pdf is over 5 MB/i);
+  });
+
+  it('rejects unaccepted extensions and oversized files via drag-and-drop with clear error notifications', () => {
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const dropZone = screen.getByTestId('chat-input-container');
+
+    const invalidDrop = new File(['script code'], 'hack.bat', { type: 'application/x-bat' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [invalidDrop],
+      },
+    });
+
+    const errorAlert = screen.getByTestId('attachment-error-alert');
+    expect(errorAlert).toBeInTheDocument();
+    expect(errorAlert).toHaveTextContent(/hack\.bat: this file type is not supported/i);
+    expect(screen.queryByTestId('staged-preview-strip')).not.toBeInTheDocument();
+  });
 });
+
 

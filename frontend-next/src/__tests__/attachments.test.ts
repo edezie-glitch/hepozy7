@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validateAttachment,
+  serializeAttachment,
   fileToAttachmentPayload,
   isImageFile,
   MAX_ATTACHMENT_SIZE,
@@ -49,6 +50,7 @@ describe('Attachment Utilities & Validation', () => {
       new File(['<script></script>'], 'index.html', { type: 'text/html' }),
       new File(['import os'], 'script.py', { type: 'text/x-python' }),
       new File(['zip contents'], 'archive.zip', { type: 'application/zip' }),
+      new File(['markdown'], 'doc.md', { type: 'text/markdown' }),
     ];
 
     for (const file of invalidFiles) {
@@ -73,11 +75,13 @@ describe('Attachment Utilities & Validation', () => {
     const content = 'Hello Hepozy attachment test';
     const testFile = new File([content], 'greeting.txt', { type: 'text/plain' });
 
-    const payload = await fileToAttachmentPayload(testFile);
+    const payload = await serializeAttachment(testFile);
+    const aliasPayload = await fileToAttachmentPayload(testFile);
 
     expect(payload.name).toBe('greeting.txt');
     expect(payload.type).toBe('text/plain');
     expect(typeof payload.data).toBe('string');
+    expect(aliasPayload).toEqual(payload);
     // Base64 decode to verify content matches
     const decoded = atob(payload.data);
     expect(decoded).toBe('Hello Hepozy attachment test');

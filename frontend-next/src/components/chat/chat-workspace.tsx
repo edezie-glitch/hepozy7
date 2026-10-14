@@ -11,7 +11,7 @@ import {
 } from '@/lib/api/chat';
 import { MessageItem } from '@/components/chat/message-item';
 import { ChatInput } from '@/components/chat/chat-input';
-import { fileToAttachmentPayload } from '@/lib/attachments';
+import { serializeAttachment } from '@/lib/attachments';
 import { Sparkles } from 'lucide-react';
 
 export interface ChatWorkspaceProps {
@@ -104,27 +104,28 @@ export function ChatWorkspace({
     }
 
     const currentStaged = [...useChatStore.getState().stagedAttachments];
-    const effectivePrompt =
+    const effectiveMessageContent =
       promptText.trim() ||
       (currentStaged.length > 0 ? 'Please read this and give me a summary.' : '');
 
     // Encode attachments to base64 { name, type, data }
     const encodedAttachments =
       currentStaged.length > 0
-        ? await Promise.all(currentStaged.map((st) => fileToAttachmentPayload(st.file)))
+        ? await Promise.all(currentStaged.map((st) => serializeAttachment(st.file)))
         : [];
 
-    const localAttachments = currentStaged.map((st) => ({
+    const localAttachments = currentStaged.map((st, idx) => ({
       name: st.name,
       type: st.type,
       url: st.previewUrl,
+      data: encodedAttachments[idx]?.data,
     }));
 
     const tempUserId = `user-${Date.now()}-${Math.random()}`;
     const userMsg: ChatMessageItem = {
       id: tempUserId,
       role: 'user',
-      content: effectivePrompt,
+      content: effectiveMessageContent,
       created_at: new Date().toISOString(),
       reply_to: quoteContext || null,
       attachments: localAttachments.length > 0 ? localAttachments : undefined,
@@ -148,7 +149,7 @@ export function ChatWorkspace({
     try {
       const response = await sendChatMessage(
         {
-          message: effectivePrompt,
+          message: effectiveMessageContent,
           conversation_id: targetConvId,
           request_id: requestId,
           reply_to: quoteContext || null,

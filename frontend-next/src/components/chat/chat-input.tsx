@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useChatStore } from '@/stores/use-chat-store';
 import { Button } from '@/components/ui/button';
+import { ACCEPTED_FILE_EXTENSIONS } from '@/lib/attachments';
 import {
   ArrowUp,
   Square,
@@ -135,7 +136,7 @@ export function ChatInput({
         type="file"
         data-testid="attachment-file-input"
         multiple
-        accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.png,.jpg,.jpeg,.webp"
+        accept={ACCEPTED_FILE_EXTENSIONS}
         onChange={handleFileSelect}
         className="hidden"
       />
