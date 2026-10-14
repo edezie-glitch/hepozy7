@@ -13,7 +13,10 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
-import { GeneratedFileCard } from './generated-file-card';
+import {
+  GeneratedDocumentCard,
+  parseDocumentFormat,
+} from './generated-document-card';
 
 export interface MessageItemProps {
   message: ChatMessageItem;
@@ -234,12 +237,14 @@ export function MessageItem({
             )}
 
             {/* Generated Document Card if available */}
-            {message.download_url && (
-              <GeneratedFileCard
-                downloadUrl={message.download_url}
-                fileName={message.file_name}
-              />
-            )}
+            {message.download_url &&
+              message.file_name &&
+              parseDocumentFormat(message.file_name) && (
+                <GeneratedDocumentCard
+                  downloadUrl={message.download_url}
+                  fileName={message.file_name}
+                />
+              )}
           </div>
 
           {/* Time & Action Toolbar */}

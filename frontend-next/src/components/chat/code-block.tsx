@@ -5,6 +5,7 @@ import Prism from 'prismjs';
 import { Copy, Check } from 'lucide-react';
 
 // Import common Prism language definitions
+import 'prismjs/components/prism-markup'; // HTML, XML, SVG
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -16,6 +17,11 @@ import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
 
 export interface CodeBlockProps {
   code: string;
@@ -32,6 +38,10 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   zsh: 'bash',
   yml: 'yaml',
   md: 'markdown',
+  html: 'markup',
+  xml: 'markup',
+  golang: 'go',
+  rs: 'rust',
 };
 
 export function CodeBlock({ code, language = '', className = '' }: CodeBlockProps) {
@@ -42,13 +52,14 @@ export function CodeBlock({ code, language = '', className = '' }: CodeBlockProp
   const displayLang = normalizedLang || 'code';
 
   const highlightedHtml = React.useMemo(() => {
+    if (!normalizedLang) return null;
     try {
-      const grammar = Prism.languages[normalizedLang] || Prism.languages.plain;
+      const grammar = Prism.languages[normalizedLang];
       if (grammar) {
         return Prism.highlight(code, grammar, normalizedLang);
       }
     } catch {
-      // Fallback if highlight throws
+      // Fallback if highlight fails
     }
     return null;
   }, [code, normalizedLang]);
@@ -66,27 +77,27 @@ export function CodeBlock({ code, language = '', className = '' }: CodeBlockProp
   return (
     <div
       data-testid="code-block"
-      className={`relative my-3 overflow-hidden rounded-xl border border-border/80 bg-zinc-950 text-zinc-100 shadow-sm ${className}`}
+      className={`relative my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/30 text-foreground shadow-xs ${className}`}
     >
-      {/* Code Header Bar */}
-      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/90 px-4 py-1.5 text-xs">
-        <span className="font-mono text-xs font-medium text-zinc-400 lowercase select-none">
+      {/* Code Header Bar with semantic tokens */}
+      <div className="flex items-center justify-between border-b border-border/60 bg-muted/60 px-4 py-1.5 text-xs">
+        <span className="font-mono text-xs font-medium text-muted-foreground lowercase select-none">
           {displayLang}
         </span>
         <button
           type="button"
           onClick={handleCopy}
           aria-label="Copy code"
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer select-none"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer select-none"
         >
           {copied ? (
             <>
-              <Check className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-emerald-400 font-medium">Copied</span>
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-emerald-500 font-medium">Copied</span>
             </>
           ) : (
             <>
-              <Copy className="h-3.5 w-3.5 text-zinc-400" />
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Copy</span>
             </>
           )}
@@ -94,7 +105,7 @@ export function CodeBlock({ code, language = '', className = '' }: CodeBlockProp
       </div>
 
       {/* Code Body */}
-      <pre className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-zinc-100 scrollbar-thin">
+      <pre className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground scrollbar-thin">
         {highlightedHtml ? (
           <code
             className={`language-${normalizedLang}`}

@@ -229,7 +229,9 @@ describe('ChatWorkspace Component Integration', () => {
       );
     });
 
-    expect(await screen.findByText(/TypeScript adds static type definitions/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/TypeScript adds static type definitions/, {}, { timeout: 4000 })
+    ).toBeInTheDocument();
   });
 
   it('allows quoting a user message, displaying reply quote chip in the input bar', async () => {

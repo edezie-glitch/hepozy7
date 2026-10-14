@@ -10,6 +10,8 @@ export interface MarkdownContentProps {
   className?: string;
 }
 
+const PreBlockContext = React.createContext<boolean>(false);
+
 export function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
   return (
     <div
@@ -95,11 +97,16 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
               {children}
             </a>
           ),
-          pre: ({ children }) => {
-            const codeProps = React.isValidElement(children) ? (children.props as any) : null;
-            if (codeProps) {
-              const rawContent = String(codeProps.children || '').replace(/\n$/, '');
-              const match = /language-(\w+)/.exec(codeProps.className || '');
+          pre: ({ children }) => (
+            <PreBlockContext.Provider value={true}>
+              {children}
+            </PreBlockContext.Provider>
+          ),
+          code: function MarkdownCode({ className, children, ...props }: any) {
+            const isInsidePre = React.useContext(PreBlockContext);
+            if (isInsidePre) {
+              const rawContent = String(children || '').replace(/\n$/, '');
+              const match = /language-(\w+)/.exec(className || '');
               return (
                 <CodeBlock
                   code={rawContent}
@@ -107,9 +114,6 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
                 />
               );
             }
-            return <pre className="overflow-x-auto p-4">{children}</pre>;
-          },
-          code: ({ node, className, children, ...props }: any) => {
             return (
               <code
                 className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] font-medium text-foreground border border-border/50"

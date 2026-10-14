@@ -190,24 +190,39 @@ describe('MessageItem Component', () => {
     expect(screen.getByRole('button', { name: /copy code/i })).toBeInTheDocument();
   });
 
-  it('renders prominent generated file download card when message contains download_url and file_name', () => {
-    const fileMsg: ChatMessageItem = {
-      id: 'msg-file',
+  it('renders prominent generated document card when message contains valid download_url and file_name', () => {
+    const docMsg: ChatMessageItem = {
+      id: 'msg-doc',
       role: 'assistant',
-      content: 'Here is your generated file analysis report.',
+      content: 'Here is your generated document report.',
       created_at: '2026-10-14T10:00:00Z',
       download_url: '/files/Analysis-Report-abc123.docx',
       file_name: 'Analysis-Report.docx',
     };
 
-    render(<MessageItem message={fileMsg} animateTypewriter={false} />);
+    render(<MessageItem message={docMsg} animateTypewriter={false} />);
 
-    expect(screen.getByTestId('generated-file-card')).toBeInTheDocument();
+    expect(screen.getByTestId('generated-document-card')).toBeInTheDocument();
     expect(screen.getByText('Analysis-Report.docx')).toBeInTheDocument();
     expect(screen.getByText('DOCX')).toBeInTheDocument();
+    expect(screen.getByText('Generated Document')).toBeInTheDocument();
 
     const downloadLink = screen.getByRole('link', { name: /download/i });
     expect(downloadLink).toHaveAttribute('href', '/files/Analysis-Report-abc123.docx');
     expect(downloadLink).toHaveAttribute('target', '_blank');
+  });
+
+  it('does NOT render document card if file_name is missing or invalid format', () => {
+    const invalidMsg: ChatMessageItem = {
+      id: 'msg-invalid',
+      role: 'assistant',
+      content: 'Plain response without valid document.',
+      created_at: '2026-10-14T10:00:00Z',
+      download_url: '/files/unknown-file.exe',
+      file_name: 'unknown-file.exe',
+    };
+
+    render(<MessageItem message={invalidMsg} animateTypewriter={false} />);
+    expect(screen.queryByTestId('generated-document-card')).not.toBeInTheDocument();
   });
 });

@@ -3,77 +3,83 @@
 import * as React from 'react';
 import { Download, FileText, FileSpreadsheet, ExternalLink } from 'lucide-react';
 
-export interface GeneratedFileCardProps {
+export type GeneratedDocumentFormat = 'docx' | 'pdf' | 'xlsx' | 'csv';
+
+export interface GeneratedDocumentCardProps {
   downloadUrl: string;
-  fileName?: string | null;
+  fileName: string;
   className?: string;
 }
 
-export function GeneratedFileCard({
+export function parseDocumentFormat(fileName?: string | null): GeneratedDocumentFormat | null {
+  if (!fileName) return null;
+  const match = /\.([a-zA-Z0-9]+)$/.exec(fileName.trim().toLowerCase());
+  if (!match) return null;
+  const ext = match[1];
+  if (ext === 'docx' || ext === 'pdf' || ext === 'xlsx' || ext === 'csv') {
+    return ext;
+  }
+  return null;
+}
+
+export function GeneratedDocumentCard({
   downloadUrl,
   fileName,
   className = '',
-}: GeneratedFileCardProps) {
-  const displayName = fileName || 'Generated Document';
-  const extension = React.useMemo(() => {
-    if (!fileName) return '';
-    const parts = fileName.split('.');
-    return parts.length > 1 ? parts.pop()?.toLowerCase() || '' : '';
-  }, [fileName]);
+}: GeneratedDocumentCardProps) {
+  const format = parseDocumentFormat(fileName);
 
   const { formatLabel, IconComponent, badgeColor } = React.useMemo(() => {
-    switch (extension) {
+    switch (format) {
       case 'docx':
-      case 'doc':
         return {
           formatLabel: 'DOCX',
           IconComponent: FileText,
-          badgeColor: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30',
+          badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
         };
       case 'pdf':
         return {
           formatLabel: 'PDF',
           IconComponent: FileText,
-          badgeColor: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
+          badgeColor: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
         };
       case 'xlsx':
-      case 'xls':
         return {
           formatLabel: 'XLSX',
           IconComponent: FileSpreadsheet,
-          badgeColor: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+          badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
         };
       case 'csv':
         return {
           formatLabel: 'CSV',
           IconComponent: FileSpreadsheet,
-          badgeColor: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+          badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         };
       default:
         return {
-          formatLabel: extension ? extension.toUpperCase() : 'FILE',
+          formatLabel: 'DOC',
           IconComponent: FileText,
-          badgeColor: 'bg-primary/20 text-primary border-primary/30',
+          badgeColor: 'bg-primary/10 text-primary border-primary/20',
         };
     }
-  }, [extension]);
+  }, [format]);
 
   return (
     <div
-      data-testid="generated-file-card"
+      data-testid="generated-document-card"
       className={`mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 dark:bg-primary/5 dark:border-primary/40 p-3 sm:p-3.5 shadow-xs transition-all hover:border-primary/50 ${className}`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        {/* Format Icon */}
+        {/* Document Format Icon */}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary border border-primary/30 shadow-xs">
           <IconComponent className="h-5 w-5" />
         </div>
 
-        {/* File Information */}
+        {/* Document Information */}
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold text-foreground">
-              {displayName}
+              {fileName}
             </span>
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase border ${badgeColor}`}
@@ -81,17 +87,16 @@ export function GeneratedFileCard({
               {formatLabel}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">Ready for download</span>
+          <span className="text-xs text-muted-foreground">Generated Document</span>
         </div>
       </div>
 
-      {/* Prominent Orange Download Action */}
+      {/* Prominent Orange Download Action opening in a new tab */}
       <a
         href={downloadUrl}
-        download={fileName || true}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`Download ${displayName}`}
+        aria-label={`Download ${fileName}`}
         className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors shrink-0 cursor-pointer"
       >
         <Download className="h-4 w-4" />
