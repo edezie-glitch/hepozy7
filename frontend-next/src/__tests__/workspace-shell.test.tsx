@@ -5,6 +5,7 @@ import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceShell } from '@/components/workspace/workspace-shell';
 import * as conversationsHooks from '@/hooks/use-conversations';
+import * as chatApi from '@/lib/api/chat';
 import * as clientModule from '@/lib/supabase/client';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -44,6 +45,10 @@ describe('WorkspaceShell Component', () => {
           },
           error: null,
         }),
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: null },
+          error: null,
+        }),
         signOut: vi.fn().mockResolvedValue({ error: null }),
       },
     };
@@ -64,6 +69,8 @@ describe('WorkspaceShell Component', () => {
       mutate: vi.fn(),
       isPending: false,
     } as unknown as ReturnType<typeof conversationsHooks.useDeleteConversation>);
+
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
   });
 
   it('renders topbar with title, user profile avatar, settings trigger, and theme toggle', async () => {

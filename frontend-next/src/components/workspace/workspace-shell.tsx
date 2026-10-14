@@ -4,7 +4,8 @@ import * as React from 'react';
 import { WorkspaceTopbar } from '@/components/workspace/workspace-topbar';
 import { ConversationSidebar } from '@/components/workspace/conversation-sidebar';
 import { SettingsModal } from '@/components/workspace/settings-modal';
-import { useConversations } from '@/hooks/use-conversations';
+import { ChatWorkspace } from '@/components/chat/chat-workspace';
+import { useConversations, useCreateConversation } from '@/hooks/use-conversations';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MessageSquare, FileText, Search, X } from 'lucide-react';
 
@@ -14,6 +15,13 @@ export function WorkspaceShell() {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   const { data: conversations = [] } = useConversations();
+  const createConversationMutation = useCreateConversation();
+
+  const handleEnsureConversation = React.useCallback(async () => {
+    const newConv = await createConversationMutation.mutateAsync();
+    setActiveConversationId(newConv.id);
+    return newConv.id;
+  }, [createConversationMutation]);
 
   const currentConversation = React.useMemo(
     () => conversations.find((c) => c.id === activeConversationId),
@@ -30,6 +38,14 @@ export function WorkspaceShell() {
   const handleNewChat = () => {
     setActiveConversationId(null);
     setMobileOpen(false);
+  };
+
+  const handleStartConversation = async () => {
+    try {
+      await handleEnsureConversation();
+    } catch (e) {
+      console.error('Failed to start conversation', e);
+    }
   };
 
   return (
@@ -126,7 +142,7 @@ export function WorkspaceShell() {
                   <Button
                     size="lg"
                     className="h-11 px-6 text-sm sm:text-base shadow-md cursor-pointer"
-                    onClick={handleNewChat}
+                    onClick={handleStartConversation}
                   >
                     <MessageSquare className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                     Start Conversation
@@ -168,18 +184,11 @@ export function WorkspaceShell() {
             </div>
           ) : (
             /* Active Conversation View */
-            <div className="flex flex-1 flex-col justify-between p-4 sm:p-6 min-w-0">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {currentTitle}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                <p>Conversation active. Messages will appear here.</p>
-              </div>
+            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+              <ChatWorkspace
+                conversationId={activeConversationId}
+                onEnsureConversation={handleEnsureConversation}
+              />
             </div>
           )}
         </main>

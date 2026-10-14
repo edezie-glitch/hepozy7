@@ -15,6 +15,10 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+if (typeof window !== 'undefined' && window.HTMLElement) {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 process.env.NEXT_PUBLIC_SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-project.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
