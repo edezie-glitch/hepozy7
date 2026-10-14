@@ -9,6 +9,15 @@ from pathlib import Path
 # Ensure orchestrator directory is in sys.path for local module imports
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from dotenv import load_dotenv
+# Load .env.local and .env from project root or current directory
+_root = Path(__file__).resolve().parent.parent
+for _env_name in [".env.local", ".env"]:
+    _env_file = _root / _env_name
+    if _env_file.exists():
+        load_dotenv(_env_file)
+load_dotenv()
+
 import time
 import base64
 import hmac
