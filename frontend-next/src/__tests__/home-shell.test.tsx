@@ -5,7 +5,7 @@ import Home from '@/app/page';
 describe('Home Shell Page', () => {
   it('renders the Hepozy AI workspace heading and description', () => {
     render(<Home />);
-    expect(screen.getByText('Hepozy')).toBeInTheDocument();
+    expect(screen.getAllByText('Hepozy')[0]).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
         name: /intelligence that works with your documents/i,

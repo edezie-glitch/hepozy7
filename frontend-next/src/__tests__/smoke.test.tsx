@@ -18,7 +18,7 @@ describe('Application End-to-End Smoke Test', () => {
     );
 
     // Verify shell renders brand name, heading, and primary CTA
-    expect(screen.getByText('Hepozy')).toBeInTheDocument();
+    expect(screen.getAllByText('Hepozy')[0]).toBeInTheDocument();
     expect(screen.getByText('AI Workspace Assistant')).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
