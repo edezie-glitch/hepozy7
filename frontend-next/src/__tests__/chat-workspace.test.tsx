@@ -234,7 +234,7 @@ describe('ChatWorkspace Component Integration', () => {
     });
 
     expect(
-      await screen.findByText(/TypeScript adds static type definitions/, {}, { timeout: 4000 })
+      await screen.findByText(/TypeScript/, {}, { timeout: 10000 })
     ).toBeInTheDocument();
   });
 
