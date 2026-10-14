@@ -51,6 +51,8 @@ describe('ChatWorkspace Component Integration', () => {
       conversation_id: 'conv-1',
       user_message_id: 'u-100',
       assistant_message_id: 'a-100',
+      needs_clarification: false,
+      quota_exceeded: false,
     });
 
     render(<ChatWorkspace conversationId="conv-1" />);
@@ -140,6 +142,8 @@ describe('ChatWorkspace Component Integration', () => {
       conversation_id: 'conv-1',
       user_message_id: 'msg-u1',
       assistant_message_id: 'msg-a2',
+      needs_clarification: false,
+      quota_exceeded: false,
     });
 
     render(<ChatWorkspace conversationId="conv-1" />);
@@ -189,6 +193,8 @@ describe('ChatWorkspace Component Integration', () => {
       conversation_id: 'conv-1',
       user_message_id: 'msg-u2',
       assistant_message_id: 'msg-a2',
+      needs_clarification: false,
+      quota_exceeded: false,
     });
 
     render(<ChatWorkspace conversationId="conv-1" />);
@@ -259,6 +265,8 @@ describe('ChatWorkspace Component Integration', () => {
       conversation_id: 'conv-1',
       user_message_id: 'u-1',
       assistant_message_id: 'a-1',
+      needs_clarification: false,
+      quota_exceeded: false,
     });
 
     render(<ChatWorkspace conversationId="conv-1" />);

@@ -20,6 +20,8 @@ describe('Chat API Client', () => {
       conversation_id: 'conv-123',
       user_message_id: 'msg-u1',
       assistant_message_id: 'msg-a1',
+      needs_clarification: false,
+      quota_exceeded: false,
     };
 
     const apiFetchSpy = vi.spyOn(apiClient, 'apiFetch').mockResolvedValueOnce(mockResponse);

@@ -11,9 +11,9 @@ import {
   Quote,
   Pencil,
   RotateCcw,
-  FileText,
-  Download,
 } from 'lucide-react';
+import { MarkdownContent } from './markdown-content';
+import { GeneratedFileCard } from './generated-file-card';
 
 export interface MessageItemProps {
   message: ChatMessageItem;
@@ -172,9 +172,9 @@ export function MessageItem({
           <div
             data-testid="message-bubble"
             onClick={handleBubbleClick}
-            className={`relative rounded-2xl px-4 py-3 text-sm sm:text-base shadow-xs break-words whitespace-pre-wrap transition-colors ${
+            className={`relative rounded-2xl px-4 py-3 text-sm sm:text-base shadow-xs break-words transition-colors ${
               isUser
-                ? 'bg-secondary text-secondary-foreground border border-border/80'
+                ? 'bg-secondary text-secondary-foreground border border-border/80 whitespace-pre-wrap'
                 : 'bg-card text-card-foreground border border-border/60'
             } ${isAnimating ? 'cursor-pointer hover:opacity-95' : ''}`}
           >
@@ -220,37 +220,25 @@ export function MessageItem({
                   </Button>
                 </div>
               </div>
-            ) : (
+            ) : isUser ? (
               <div>
                 <span>{displayedText}</span>
+              </div>
+            ) : (
+              <div className="relative">
+                <MarkdownContent content={displayedText} />
                 {isAnimating && (
-                  <span className="inline-block h-3.5 w-1.5 ml-1 bg-primary animate-pulse" />
+                  <span className="inline-block h-3.5 w-1.5 ml-1 bg-primary animate-pulse align-middle" />
                 )}
               </div>
             )}
 
             {/* Generated Document Card if available */}
             {message.download_url && (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs sm:text-sm text-foreground">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/20 text-primary">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <span className="truncate font-medium">
-                    {message.file_name || 'Generated Document'}
-                  </span>
-                </div>
-                <a
-                  href={message.download_url}
-                  download={message.file_name || true}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 shadow-xs"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
-                </a>
-              </div>
+              <GeneratedFileCard
+                downloadUrl={message.download_url}
+                fileName={message.file_name}
+              />
             )}
           </div>
 

@@ -171,4 +171,43 @@ describe('MessageItem Component', () => {
 
     expect(handleRetry).toHaveBeenCalledWith('msg-a1');
   });
+
+  it('renders rich markdown with code fences, syntax highlighting and table inside assistant response', () => {
+    const markdownMsg: ChatMessageItem = {
+      id: 'msg-rich',
+      role: 'assistant',
+      content: '### Summary\n\n| Item | Val |\n| :--- | :--- |\n| A | 10 |\n\n```python\nprint("hello")\n```',
+      created_at: '2026-10-14T10:00:00Z',
+    };
+
+    render(<MessageItem message={markdownMsg} animateTypewriter={false} />);
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Summary');
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('Item')).toBeInTheDocument();
+    expect(screen.getByText('Val')).toBeInTheDocument();
+    expect(screen.getByText('python')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy code/i })).toBeInTheDocument();
+  });
+
+  it('renders prominent generated file download card when message contains download_url and file_name', () => {
+    const fileMsg: ChatMessageItem = {
+      id: 'msg-file',
+      role: 'assistant',
+      content: 'Here is your generated file analysis report.',
+      created_at: '2026-10-14T10:00:00Z',
+      download_url: '/files/Analysis-Report-abc123.docx',
+      file_name: 'Analysis-Report.docx',
+    };
+
+    render(<MessageItem message={fileMsg} animateTypewriter={false} />);
+
+    expect(screen.getByTestId('generated-file-card')).toBeInTheDocument();
+    expect(screen.getByText('Analysis-Report.docx')).toBeInTheDocument();
+    expect(screen.getByText('DOCX')).toBeInTheDocument();
+
+    const downloadLink = screen.getByRole('link', { name: /download/i });
+    expect(downloadLink).toHaveAttribute('href', '/files/Analysis-Report-abc123.docx');
+    expect(downloadLink).toHaveAttribute('target', '_blank');
+  });
 });
