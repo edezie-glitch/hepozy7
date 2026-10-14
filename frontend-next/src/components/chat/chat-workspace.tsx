@@ -11,6 +11,7 @@ import {
 } from '@/lib/api/chat';
 import { MessageItem } from '@/components/chat/message-item';
 import { ChatInput } from '@/components/chat/chat-input';
+import { fileToAttachmentPayload } from '@/lib/attachments';
 import { Sparkles } from 'lucide-react';
 
 export interface ChatWorkspaceProps {
@@ -46,13 +47,24 @@ export function ChatWorkspace({
 
   // Fetch chat history whenever conversationId changes
   React.useEffect(() => {
+    let active = true;
+
     if (!conversationId) {
-      setMessages([]);
-      return;
+      queueMicrotask(() => {
+        if (active) {
+          setMessages([]);
+        }
+      });
+      return () => {
+        active = false;
+      };
     }
 
-    let active = true;
-    setLoadingHistory(true);
+    queueMicrotask(() => {
+      if (active) {
+        setLoadingHistory(true);
+      }
+    });
 
     getChatHistory(conversationId)
       .then((history) => {
@@ -91,13 +103,31 @@ export function ChatWorkspace({
       targetConvId = await onEnsureConversation();
     }
 
+    const currentStaged = [...useChatStore.getState().stagedAttachments];
+    const effectivePrompt =
+      promptText.trim() ||
+      (currentStaged.length > 0 ? 'Please read this and give me a summary.' : '');
+
+    // Encode attachments to base64 { name, type, data }
+    const encodedAttachments =
+      currentStaged.length > 0
+        ? await Promise.all(currentStaged.map((st) => fileToAttachmentPayload(st.file)))
+        : [];
+
+    const localAttachments = currentStaged.map((st) => ({
+      name: st.name,
+      type: st.type,
+      url: st.previewUrl,
+    }));
+
     const tempUserId = `user-${Date.now()}-${Math.random()}`;
     const userMsg: ChatMessageItem = {
       id: tempUserId,
       role: 'user',
-      content: promptText,
+      content: effectivePrompt,
       created_at: new Date().toISOString(),
       reply_to: quoteContext || null,
+      attachments: localAttachments.length > 0 ? localAttachments : undefined,
     };
 
     if (options?.appendUserMessage !== false) {
@@ -118,10 +148,11 @@ export function ChatWorkspace({
     try {
       const response = await sendChatMessage(
         {
-          message: promptText,
+          message: effectivePrompt,
           conversation_id: targetConvId,
           request_id: requestId,
           reply_to: quoteContext || null,
+          attachments: encodedAttachments.length > 0 ? encodedAttachments : undefined,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
         controller.signal

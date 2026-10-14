@@ -13,6 +13,8 @@ describe('ChatInput Component', () => {
       isGenerating: false,
       activeRequestId: null,
       abortController: null,
+      stagedAttachments: [],
+      attachmentError: null,
     });
   });
 
@@ -96,10 +98,88 @@ describe('ChatInput Component', () => {
     expect(handleStop).toHaveBeenCalled();
   });
 
-  it('disables send button when textarea is empty', () => {
+  it('disables send button when textarea is empty and no attachments are staged', () => {
     render(<ChatInput onSubmit={vi.fn()} />);
 
     const sendButton = screen.getByRole('button', { name: /send message/i });
     expect(sendButton).toBeDisabled();
   });
+
+  it('enables send button when attachments are staged even if textarea is empty', () => {
+    useChatStore.getState().stageFiles([
+      new File(['doc content'], 'spec.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }),
+    ]);
+
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const sendButton = screen.getByRole('button', { name: /send message/i });
+    expect(sendButton).toBeEnabled();
+  });
+
+  it('renders staged preview strip with image thumbnail, doc icon, and interactive remove buttons', async () => {
+    const user = userEvent.setup();
+    const docFile = new File(['text content'], 'notes.txt', { type: 'text/plain' });
+    const imgFile = new File(['image binary'], 'diagram.png', { type: 'image/png' });
+
+    useChatStore.getState().stageFiles([docFile, imgFile]);
+
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const previewStrip = screen.getByTestId('staged-preview-strip');
+    expect(previewStrip).toBeInTheDocument();
+
+    // Check document item rendering
+    expect(screen.getByText('notes.txt')).toBeInTheDocument();
+
+    // Check image item rendering
+    const imgThumbnail = screen.getByAltText('diagram.png');
+    expect(imgThumbnail).toBeInTheDocument();
+
+    // Interactive remove button for document
+    const removeDocBtn = screen.getByRole('button', { name: /remove notes\.txt/i });
+    expect(removeDocBtn).toBeInTheDocument();
+    await user.click(removeDocBtn);
+
+    expect(screen.queryByText('notes.txt')).not.toBeInTheDocument();
+    expect(screen.getByAltText('diagram.png')).toBeInTheDocument();
+  });
+
+  it('displays clear error notification when file selector rejects unaccepted files or >5MB files', async () => {
+    const user = userEvent.setup();
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const fileInput = screen.getByTestId('attachment-file-input') as HTMLInputElement;
+
+    // Upload an invalid exe file
+    const invalidFile = new File(['malicious'], 'trojan.exe', { type: 'application/x-msdownload' });
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    const errorAlert = screen.getByTestId('attachment-error-alert');
+    expect(errorAlert).toBeInTheDocument();
+    expect(errorAlert).toHaveTextContent(/this file type is not supported/i);
+
+    // Dismiss error alert
+    const dismissBtn = screen.getByRole('button', { name: /dismiss attachment error/i });
+    await user.click(dismissBtn);
+    expect(screen.queryByTestId('attachment-error-alert')).not.toBeInTheDocument();
+  });
+
+  it('supports drag-and-drop file upload on input area', async () => {
+    render(<ChatInput onSubmit={vi.fn()} />);
+
+    const dropZone = screen.getByTestId('chat-input-container');
+
+    const validFile = new File(['data'], 'analysis.csv', { type: 'text/csv' });
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [validFile],
+      },
+    });
+
+    expect(await screen.findByText('analysis.csv')).toBeInTheDocument();
+    expect(screen.getByTestId('staged-preview-strip')).toBeInTheDocument();
+  });
 });
+

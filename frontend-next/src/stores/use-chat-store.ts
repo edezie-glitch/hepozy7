@@ -1,4 +1,9 @@
 import { create } from 'zustand';
+import {
+  type StagedAttachment,
+  validateAttachment,
+  isImageFile,
+} from '@/lib/attachments';
 
 export interface ReplyingToState {
   text: string;
@@ -14,6 +19,10 @@ export interface ChatStoreState {
   activeRequestId: string | null;
   abortController: AbortController | null;
 
+  // Multimodal Attachments Staging
+  stagedAttachments: StagedAttachment[];
+  attachmentError: string | null;
+
   setInputDraft: (draft: string) => void;
   setInputPrompt: (prompt: string) => void;
   setReplyingTo: (reply: ReplyingToState | null) => void;
@@ -27,6 +36,14 @@ export interface ChatStoreState {
     shownText?: string
   ) => void;
   resetInput: () => void;
+
+  stageFiles: (files: File[]) => {
+    added: StagedAttachment[];
+    rejected: { file: File; reason: string }[];
+  };
+  removeStagedAttachment: (id: string) => void;
+  clearStagedAttachments: () => void;
+  setAttachmentError: (error: string | null) => void;
 }
 
 export const useChatStore = create<ChatStoreState>((set, get) => ({
@@ -37,6 +54,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   isGenerating: false,
   activeRequestId: null,
   abortController: null,
+  stagedAttachments: [],
+  attachmentError: null,
 
   setInputDraft: (draft) => set({ inputDraft: draft, inputPrompt: draft }),
   setInputPrompt: (prompt) => set({ inputDraft: prompt, inputPrompt: prompt }),
@@ -62,5 +81,96 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     });
   },
 
-  resetInput: () => set({ inputDraft: '', inputPrompt: '', replyingTo: null }),
+  stageFiles: (files: File[]) => {
+    const added: StagedAttachment[] = [];
+    const rejected: { file: File; reason: string }[] = [];
+
+    for (const file of files) {
+      const validation = validateAttachment(file);
+      if (!validation.valid) {
+        rejected.push({ file, reason: validation.error || 'Invalid file' });
+      } else {
+        const isImg = isImageFile(file);
+        let previewUrl: string | undefined;
+        if (isImg && typeof URL !== 'undefined' && URL.createObjectURL) {
+          try {
+            previewUrl = URL.createObjectURL(file);
+          } catch {
+            previewUrl = undefined;
+          }
+        }
+        const staged: StagedAttachment = {
+          id: `attach-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          file,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+          previewUrl,
+          isImage: isImg,
+        };
+        added.push(staged);
+      }
+    }
+
+    set((state) => ({
+      stagedAttachments: [...state.stagedAttachments, ...added],
+      attachmentError: rejected.length > 0 ? rejected[0].reason : state.attachmentError,
+    }));
+
+    return { added, rejected };
+  },
+
+  removeStagedAttachment: (id: string) => {
+    const { stagedAttachments } = get();
+    const item = stagedAttachments.find((a) => a.id === id);
+    if (item?.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+      try {
+        URL.revokeObjectURL(item.previewUrl);
+      } catch {
+        // ignore
+      }
+    }
+    set({
+      stagedAttachments: stagedAttachments.filter((a) => a.id !== id),
+    });
+  },
+
+  clearStagedAttachments: () => {
+    const { stagedAttachments } = get();
+    for (const item of stagedAttachments) {
+      if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        try {
+          URL.revokeObjectURL(item.previewUrl);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    set({
+      stagedAttachments: [],
+      attachmentError: null,
+    });
+  },
+
+  setAttachmentError: (error: string | null) => set({ attachmentError: error }),
+
+  resetInput: () => {
+    const { stagedAttachments } = get();
+    for (const item of stagedAttachments) {
+      if (item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        try {
+          URL.revokeObjectURL(item.previewUrl);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    set({
+      inputDraft: '',
+      inputPrompt: '',
+      replyingTo: null,
+      stagedAttachments: [],
+      attachmentError: null,
+    });
+  },
 }));

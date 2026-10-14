@@ -71,4 +71,38 @@ describe('useChatStore', () => {
     expect(useChatStore.getState().activeRequestId).toBeNull();
     expect(useChatStore.getState().abortController).toBeNull();
   });
+
+  it('manages staging attachments, rejection errors, removal, and clearing', () => {
+    expect(useChatStore.getState().stagedAttachments).toEqual([]);
+    expect(useChatStore.getState().attachmentError).toBeNull();
+
+    const validDoc = new File(['valid pdf content'], 'report.pdf', { type: 'application/pdf' });
+    const validImg = new File(['valid img content'], 'photo.png', { type: 'image/png' });
+    const invalidFile = new File(['bad'], 'script.sh', { type: 'application/x-sh' });
+
+    // Stage valid files
+    const result1 = useChatStore.getState().stageFiles([validDoc, validImg]);
+    expect(result1.added.length).toBe(2);
+    expect(result1.rejected.length).toBe(0);
+    expect(useChatStore.getState().stagedAttachments.length).toBe(2);
+    expect(useChatStore.getState().stagedAttachments[0].name).toBe('report.pdf');
+    expect(useChatStore.getState().stagedAttachments[1].isImage).toBe(true);
+
+    // Stage invalid file -> should set error and reject
+    const result2 = useChatStore.getState().stageFiles([invalidFile]);
+    expect(result2.rejected.length).toBe(1);
+    expect(useChatStore.getState().attachmentError).toMatch(/this file type is not supported/i);
+
+    // Remove one attachment
+    const idToRemove = useChatStore.getState().stagedAttachments[0].id;
+    useChatStore.getState().removeStagedAttachment(idToRemove);
+    expect(useChatStore.getState().stagedAttachments.length).toBe(1);
+    expect(useChatStore.getState().stagedAttachments[0].name).toBe('photo.png');
+
+    // Clear staged attachments
+    useChatStore.getState().clearStagedAttachments();
+    expect(useChatStore.getState().stagedAttachments).toEqual([]);
+    expect(useChatStore.getState().attachmentError).toBeNull();
+  });
 });
+

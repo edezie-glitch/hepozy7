@@ -11,7 +11,9 @@ import {
   Quote,
   Pencil,
   RotateCcw,
+  FileText,
 } from 'lucide-react';
+import { isImageFile } from '@/lib/attachments';
 import { MarkdownContent } from './markdown-content';
 import {
   GeneratedDocumentCard,
@@ -55,18 +57,29 @@ export function MessageItem({
 
   // Interval reference for typewriter
   React.useEffect(() => {
+    let active = true;
     if (!animateTypewriter || isUser) {
-      setDisplayedText(message.content);
-      setIsAnimating(false);
-      return;
+      queueMicrotask(() => {
+        if (active) {
+          setDisplayedText(message.content);
+          setIsAnimating(false);
+        }
+      });
+      return () => {
+        active = false;
+      };
     }
 
     const fullText = message.content;
     const chunkSize = Math.max(2, Math.ceil(fullText.length / 60));
     let currentIdx = 0;
 
-    setIsAnimating(true);
-    setDisplayedText('');
+    queueMicrotask(() => {
+      if (active) {
+        setIsAnimating(true);
+        setDisplayedText('');
+      }
+    });
 
     const interval = setInterval(() => {
       currentIdx += chunkSize;
@@ -186,6 +199,63 @@ export function MessageItem({
               <div className="mb-2 border-l-2 border-primary/80 bg-primary/5 pl-2.5 py-1 text-xs text-muted-foreground italic rounded-r-md">
                 <span className="font-semibold not-italic text-primary/90 mr-1.5">Quoting:</span>
                 <span className="line-clamp-2">{message.reply_to}</span>
+              </div>
+            )}
+
+            {/* Message Attachments */}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {message.attachments.map((att, idx) => {
+                  const isImg = isImageFile(att.type || att.name);
+                  const imgSrc =
+                    att.url ||
+                    (att.data
+                      ? att.data.startsWith('data:')
+                        ? att.data
+                        : `data:${att.type || 'image/png'};base64,${att.data}`
+                      : '');
+
+                  if (isImg) {
+                    return (
+                      <div
+                        key={`${att.name}-${idx}`}
+                        data-testid="image-attachment"
+                        className="relative overflow-hidden rounded-xl border border-border/60 shadow-xs max-w-[240px]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgSrc}
+                          alt={att.name}
+                          className="h-auto max-h-56 w-auto object-cover rounded-xl"
+                        />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={`${att.name}-${idx}`}
+                      data-testid="document-attachment"
+                      className="flex items-center gap-2 rounded-xl border border-border/80 bg-background/60 px-3 py-1.5 text-xs shadow-xs"
+                    >
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      {att.url ? (
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate font-medium hover:underline text-foreground max-w-[180px]"
+                        >
+                          {att.name}
+                        </a>
+                      ) : (
+                        <span className="truncate font-medium text-foreground max-w-[180px]">
+                          {att.name}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

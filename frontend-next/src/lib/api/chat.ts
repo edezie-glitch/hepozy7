@@ -11,7 +11,8 @@ export type { ChatRequest, ChatResponse, StopRequest, EditRequest };
 export interface ChatAttachment {
   name: string;
   type: string;
-  url: string;
+  url?: string;
+  data?: string;
 }
 
 export interface ChatMessageItem {

@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatWorkspace } from '@/components/chat/chat-workspace';
 import * as chatApi from '@/lib/api/chat';
@@ -16,6 +16,8 @@ describe('ChatWorkspace Component Integration', () => {
       isGenerating: false,
       activeRequestId: null,
       abortController: null,
+      stagedAttachments: [],
+      attachmentError: null,
     });
   });
 
@@ -287,5 +289,63 @@ describe('ChatWorkspace Component Integration', () => {
     expect(assistantBubble).toHaveTextContent('Detailed multi-sentence explanation of LLM routing and token allocation.');
     expect(useChatStore.getState().isGenerating).toBe(false);
   });
+
+  it('submits user prompt with staged attachments, serializing base64 payloads to POST /api/chat', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+    const sendSpy = vi.spyOn(chatApi, 'sendChatMessage').mockResolvedValueOnce({
+      reply: 'I have analyzed the provided spreadsheet and photo.',
+      conversation_id: 'conv-1',
+      user_message_id: 'u-attach-1',
+      assistant_message_id: 'a-attach-1',
+      needs_clarification: false,
+      quota_exceeded: false,
+    });
+
+    // Stage a document and an image
+    const csvFile = new File(['year,sales\n2025,100\n2026,200'], 'data.csv', { type: 'text/csv' });
+    const imgFile = new File(['image byte content'], 'chart.png', { type: 'image/png' });
+    useChatStore.getState().stageFiles([csvFile, imgFile]);
+
+    render(<ChatWorkspace conversationId="conv-1" />);
+
+    // Verify preview strip is displayed before sending
+    expect(screen.getByTestId('staged-preview-strip')).toBeInTheDocument();
+    expect(screen.getByText('data.csv')).toBeInTheDocument();
+    expect(screen.getByAltText('chart.png')).toBeInTheDocument();
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Please analyze these files{enter}');
+
+    await waitFor(() => {
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Please analyze these files',
+          conversation_id: 'conv-1',
+          attachments: [
+            expect.objectContaining({
+              name: 'data.csv',
+              type: 'text/csv',
+              data: expect.any(String),
+            }),
+            expect.objectContaining({
+              name: 'chart.png',
+              type: 'image/png',
+              data: expect.any(String),
+            }),
+          ],
+        }),
+        expect.any(AbortSignal)
+      );
+    });
+
+    // Staged preview strip should be cleared after sending
+    expect(screen.queryByTestId('staged-preview-strip')).not.toBeInTheDocument();
+
+    // Attachments should render in user message bubble history
+    expect(screen.getByTestId('document-attachment')).toHaveTextContent('data.csv');
+    expect(screen.getByTestId('image-attachment')).toBeInTheDocument();
+  });
 });
+
 

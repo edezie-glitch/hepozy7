@@ -225,4 +225,60 @@ describe('MessageItem Component', () => {
     render(<MessageItem message={invalidMsg} animateTypewriter={false} />);
     expect(screen.queryByTestId('generated-document-card')).not.toBeInTheDocument();
   });
+
+  it('renders image attachments as rounded thumbnails in user message bubble history', () => {
+    const userMsgWithImages: ChatMessageItem = {
+      id: 'msg-img',
+      role: 'user',
+      content: 'Look at these design screenshots',
+      created_at: '2026-10-14T10:00:00Z',
+      attachments: [
+        {
+          name: 'mockup.png',
+          type: 'image/png',
+          url: 'https://example.com/mockup.png',
+        },
+      ],
+    };
+
+    render(<MessageItem message={userMsgWithImages} />);
+
+    const imgAttachment = screen.getByTestId('image-attachment');
+    expect(imgAttachment).toBeInTheDocument();
+
+    const img = screen.getByAltText('mockup.png');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'https://example.com/mockup.png');
+    expect(screen.getByText('Look at these design screenshots')).toBeInTheDocument();
+  });
+
+  it('renders document attachments with file icons and filenames in message bubbles', () => {
+    const userMsgWithDocs: ChatMessageItem = {
+      id: 'msg-doc-user',
+      role: 'user',
+      content: 'Here is the data export for review',
+      created_at: '2026-10-14T10:00:00Z',
+      attachments: [
+        {
+          name: 'dataset.csv',
+          type: 'text/csv',
+          url: 'https://example.com/dataset.csv',
+        },
+        {
+          name: 'summary.pdf',
+          type: 'application/pdf',
+        },
+      ],
+    };
+
+    render(<MessageItem message={userMsgWithDocs} />);
+
+    const docAttachments = screen.getAllByTestId('document-attachment');
+    expect(docAttachments.length).toBe(2);
+
+    expect(screen.getByText('dataset.csv')).toBeInTheDocument();
+    expect(screen.getByText('summary.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Here is the data export for review')).toBeInTheDocument();
+  });
 });
+
