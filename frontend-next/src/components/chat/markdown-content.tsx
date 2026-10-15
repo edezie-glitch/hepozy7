@@ -3,6 +3,7 @@
 import * as React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Copy, Check } from 'lucide-react';
 import { CodeBlock } from './code-block';
 
 export interface MarkdownContentProps {
@@ -11,6 +12,118 @@ export interface MarkdownContentProps {
 }
 
 const PreBlockContext = React.createContext<boolean>(false);
+
+export function extractMarkdownFromTable(tableEl: HTMLTableElement): string {
+  const rows = Array.from(tableEl.querySelectorAll('tr'));
+  if (rows.length === 0) return '';
+
+  const tableData = rows.map((row) =>
+    Array.from(row.querySelectorAll('th, td')).map((cell) =>
+      (cell.textContent || '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
+    )
+  );
+
+  const colCount = Math.max(...tableData.map((r) => r.length), 0);
+  if (colCount === 0) return '';
+
+  const normalizedRows = tableData.map((r) => {
+    const padded = [...r];
+    while (padded.length < colCount) {
+      padded.push('');
+    }
+    return padded;
+  });
+
+  const colWidths = Array(colCount).fill(3);
+  for (const row of normalizedRows) {
+    row.forEach((cell, i) => {
+      if (cell.length > colWidths[i]) {
+        colWidths[i] = cell.length;
+      }
+    });
+  }
+
+  const formatRow = (row: string[]) =>
+    `| ${row.map((c, i) => c.padEnd(colWidths[i])).join(' | ')} |`;
+
+  const headerLine = formatRow(normalizedRows[0]);
+  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`;
+  const bodyLines = normalizedRows.slice(1).map(formatRow);
+
+  return [headerLine, separatorLine, ...bodyLines].join('\n');
+}
+
+export function MarkdownTable({ className = '', children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
+  const [copied, setCopied] = React.useState(false);
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = async () => {
+    if (!tableRef.current) return;
+    try {
+      const text = extractMarkdownFromTable(tableRef.current);
+      await navigator.clipboard.writeText(text);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      setCopied(true);
+      timeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        timeoutRef.current = null;
+      }, 2000);
+    } catch (e) {
+      console.error('Failed to copy table to clipboard', e);
+    }
+  };
+
+  return (
+    <div
+      data-testid="table-block"
+      className="my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/30 shadow-xs"
+    >
+      <div className="flex items-center justify-between border-b border-border/60 bg-muted/60 px-4 py-1.5 text-xs">
+        <span className="font-mono text-xs font-medium text-muted-foreground lowercase select-none">
+          table
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label="Copy table"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer select-none"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-emerald-500 font-medium">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Copy Table</span>
+            </>
+          )}
+        </button>
+      </div>
+      <div className="table-container w-full overflow-x-auto scrollbar-thin">
+        <table
+          ref={tableRef}
+          className={`w-full border-collapse text-left text-xs sm:text-sm ${className}`}
+          {...props}
+        >
+          {children}
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
   return (
@@ -64,9 +177,7 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
             />
           ),
           table: ({ node: _node, ...props }) => (
-            <div className="table-container my-3 w-full overflow-x-auto rounded-lg border border-border/80 shadow-xs">
-              <table className="w-full border-collapse text-left text-xs sm:text-sm" {...props} />
-            </div>
+            <MarkdownTable {...props} />
           ),
           thead: ({ node: _node, ...props }) => (
             <thead
@@ -78,7 +189,7 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
             <tbody className="divide-y divide-border/60" {...props} />
           ),
           tr: ({ node: _node, ...props }) => (
-            <tr className="transition-colors hover:bg-muted/30" {...props} />
+            <tr className="even:bg-muted/20 hover:bg-muted/35 transition-colors" {...props} />
           ),
           th: ({ node: _node, ...props }) => (
             <th className="px-3.5 py-2 font-semibold text-foreground" {...props} />
