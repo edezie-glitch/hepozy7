@@ -230,7 +230,7 @@ describe('ConversationSidebar Component', () => {
     expect(aside).toHaveClass('w-64');
   });
 
-  it('persistently renders Hepozy logo, New Chat button, Settings button, and User Avatar in collapsed state', async () => {
+  it('persistently renders Hepozy logo, New Chat button, Settings button, Theme toggle, and User Avatar in collapsed state', async () => {
     const user = userEvent.setup();
     const onOpenSettings = vi.fn();
     const onNewChat = vi.fn();
@@ -263,6 +263,10 @@ describe('ConversationSidebar Component', () => {
     await user.click(newChatBtn);
     expect(onNewChat).toHaveBeenCalled();
 
+    // Theme toggle in rail
+    const themeBtn = screen.getByRole('button', { name: /toggle theme/i });
+    expect(themeBtn).toBeInTheDocument();
+
     // Settings button in rail
     const settingsBtn = screen.getByRole('button', { name: /open settings/i });
     expect(settingsBtn).toBeInTheDocument();
@@ -272,6 +276,40 @@ describe('ConversationSidebar Component', () => {
     // User Avatar profile dropdown
     const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
     expect(userProfileTrigger).toBeInTheDocument();
+  });
+
+  it('renders User Profile, Settings button, and Theme toggle in expanded sidebar footer', async () => {
+    const user = userEvent.setup();
+    const onOpenSettings = vi.fn();
+
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+        onOpenSettings={onOpenSettings}
+        isCollapsed={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // User Profile dropdown
+    expect(screen.getByLabelText(/user profile menu/i)).toBeInTheDocument();
+
+    // Settings trigger in expanded footer
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    expect(settingsBtn).toBeInTheDocument();
+    await user.click(settingsBtn);
+    expect(onOpenSettings).toHaveBeenCalled();
+
+    // Theme toggle in expanded footer
+    expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
   });
 
   it('collapses search input and conversation list cleanly without horizontal overflow', async () => {

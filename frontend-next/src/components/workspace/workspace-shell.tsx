@@ -1,20 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { WorkspaceTopbar } from '@/components/workspace/workspace-topbar';
 import { ConversationSidebar } from '@/components/workspace/conversation-sidebar';
 import { SettingsModal } from '@/components/workspace/settings-modal';
 import { ChatWorkspace } from '@/components/chat/chat-workspace';
-import { useConversations, useCreateConversation } from '@/hooks/use-conversations';
+import { useCreateConversation } from '@/hooks/use-conversations';
 import { Button } from '@/components/ui/button';
-import { Sparkles, MessageSquare, FileText, Search, X } from 'lucide-react';
+import { Sparkles, MessageSquare, FileText, Search, X, Menu } from 'lucide-react';
 
 export function WorkspaceShell() {
   const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
-  const { data: conversations = [] } = useConversations();
   const createConversationMutation = useCreateConversation();
 
   const handleEnsureConversation = React.useCallback(async () => {
@@ -22,13 +20,6 @@ export function WorkspaceShell() {
     setActiveConversationId(newConv.id);
     return newConv.id;
   }, [createConversationMutation]);
-
-  const currentConversation = React.useMemo(
-    () => conversations.find((c) => c.id === activeConversationId),
-    [conversations, activeConversationId]
-  );
-
-  const currentTitle = currentConversation?.title || (activeConversationId ? 'New conversation' : null);
 
   const handleSelectConversation = (id: string | null) => {
     setActiveConversationId(id);
@@ -108,13 +99,21 @@ export function WorkspaceShell() {
         </div>
       )}
 
-      {/* Main Workspace Area */}
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        <WorkspaceTopbar
-          currentTitle={currentTitle}
-          onToggleMobileDrawer={() => setMobileOpen((prev) => !prev)}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+      {/* Main Workspace Area / Canvas */}
+      <div className="relative flex flex-1 flex-col overflow-hidden min-w-0">
+        {/* Floating Mobile Drawer Toggle (visible when drawer is closed on mobile < 640px) */}
+        {!mobileOpen && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Toggle navigation menu"
+            data-testid="mobile-drawer-toggle"
+            className="fixed top-3 left-3 z-40 h-9 w-9 rounded-lg border border-border/70 bg-background/80 shadow-xs backdrop-blur-md text-muted-foreground hover:text-foreground sm:hidden cursor-pointer"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
 
         <main className="flex flex-1 flex-col overflow-y-auto min-w-0">
           {!activeConversationId ? (

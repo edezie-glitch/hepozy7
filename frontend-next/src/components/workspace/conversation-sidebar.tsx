@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { UserProfileDropdown } from '@/components/workspace/user-profile-dropdown';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useConversations, useDeleteConversation } from '@/hooks/use-conversations';
 import { cn } from '@/lib/utils';
 
@@ -275,28 +276,78 @@ export function ConversationSidebar({
         <div className="flex-1" aria-hidden="true" />
       )}
 
-      {/* Footer Controls: Settings button in collapsed rail & User Profile */}
+      {/* Footer Controls: Settings trigger, Theme toggle, and User Profile */}
       <div className={cn('border-t border-border/70 p-2 flex flex-col gap-2', collapsed && 'items-center')}>
-        {collapsed && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onOpenSettings}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                  aria-label="Open settings"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              }
-            />
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
-        )}
+        {collapsed ? (
+          <>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <ThemeToggle
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                  />
+                }
+              />
+              <TooltipContent side="right">Toggle theme</TooltipContent>
+            </Tooltip>
 
-        <UserProfileDropdown onOpenSettings={onOpenSettings} showName={!collapsed} />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onOpenSettings}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                    aria-label="Open settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="right">Settings</TooltipContent>
+            </Tooltip>
+
+            <UserProfileDropdown onOpenSettings={onOpenSettings} showName={false} />
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-1 w-full">
+            <div className="flex-1 min-w-0">
+              <UserProfileDropdown onOpenSettings={onOpenSettings} showName={true} />
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onOpenSettings}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                      aria-label="Open settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+                <TooltipContent side="top">Settings</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <ThemeToggle
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                    />
+                  }
+                />
+                <TooltipContent side="top">Toggle theme</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

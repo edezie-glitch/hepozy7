@@ -74,11 +74,11 @@ describe('WorkspaceShell Component', () => {
     vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
   });
 
-  it('renders topbar with title, user profile avatar, settings trigger, and theme toggle', async () => {
+  it('renders full-height canvas without WorkspaceTopbar and provides sidebar footer controls', async () => {
     renderWithProviders(<WorkspaceShell />);
 
-    // Default title is "New conversation" when no conversation is selected
-    expect(screen.getByTestId('topbar-conversation-title')).toHaveTextContent(/new conversation/i);
+    // WorkspaceTopbar and topbar title should NOT exist in the DOM
+    expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
 
     // Profile menu trigger
     expect(screen.getAllByLabelText(/user profile menu/i).length).toBeGreaterThanOrEqual(1);
@@ -88,40 +88,47 @@ describe('WorkspaceShell Component', () => {
 
     // Theme toggle
     expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
+
+    // Full height welcome canvas
+    expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
   });
 
-  it('updates topbar title when selecting a conversation', async () => {
+  it('switches to full-height chat workspace when selecting a conversation without topbar clutter', async () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);
 
-    expect(screen.getByTestId('topbar-conversation-title')).toHaveTextContent(/new conversation/i);
+    expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
 
     // Click on a conversation in the sidebar
     await user.click(screen.getByText('First Workspace Chat'));
 
-    expect(screen.getByTestId('topbar-conversation-title')).toHaveTextContent('First Workspace Chat');
+    // Chat input is present in full-height chat canvas
+    expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
+    // No topbar exists
+    expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
   });
 
-  it('resets active conversation and topbar title when clicking New Chat', async () => {
+  it('resets active conversation when clicking New Chat', async () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);
 
     // Select a conversation first
     await user.click(screen.getByText('First Workspace Chat'));
-    expect(screen.getByTestId('topbar-conversation-title')).toHaveTextContent('First Workspace Chat');
+    expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
 
     // Click New Chat
     await user.click(screen.getByRole('button', { name: /new chat/i }));
 
-    expect(screen.getByTestId('topbar-conversation-title')).toHaveTextContent(/new conversation/i);
     expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
   });
 
-  it('toggles mobile slide-out drawer and backdrop overlay', async () => {
+  it('toggles mobile slide-out drawer via floating drawer trigger when drawer is closed', async () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);
 
     const menuToggle = screen.getByRole('button', { name: /toggle navigation menu/i });
+    expect(menuToggle).toHaveAttribute('data-testid', 'mobile-drawer-toggle');
 
     // Initially drawer backdrop should not be in the document
     expect(screen.queryByTestId('mobile-drawer-backdrop')).not.toBeInTheDocument();
@@ -132,14 +139,18 @@ describe('WorkspaceShell Component', () => {
     expect(backdrop).toBeInTheDocument();
     expect(screen.getByTestId('mobile-drawer-panel')).toBeInTheDocument();
 
+    // While drawer is open, floating toggle is closed/hidden
+    expect(screen.queryByTestId('mobile-drawer-toggle')).not.toBeInTheDocument();
+
     // Click backdrop to close
     await user.click(backdrop);
     await waitFor(() => {
       expect(screen.queryByTestId('mobile-drawer-backdrop')).not.toBeInTheDocument();
     });
 
-    // Reopen mobile drawer and test closing via sidebar toggle button
-    await user.click(menuToggle);
+    // Reopen mobile drawer via floating trigger and test closing via sidebar toggle button
+    const restoredMenuToggle = screen.getByRole('button', { name: /toggle navigation menu/i });
+    await user.click(restoredMenuToggle);
     expect(screen.getByTestId('mobile-drawer-panel')).toBeInTheDocument();
 
     const mobilePanel = screen.getByTestId('mobile-drawer-panel');
@@ -150,6 +161,7 @@ describe('WorkspaceShell Component', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('mobile-drawer-panel')).not.toBeInTheDocument();
     });
+    expect(screen.getByTestId('mobile-drawer-toggle')).toBeInTheDocument();
   });
 
 
