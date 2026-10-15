@@ -329,7 +329,7 @@ export function ChatWorkspace({
       >
         <div
           data-testid="message-stream-container"
-          className="mx-auto flex min-h-full max-w-3xl w-full flex-col space-y-2"
+          className="mx-auto flex min-h-full max-w-4xl lg:max-w-5xl w-full flex-col space-y-2"
         >
           {loadingHistory ? (
             <div className="flex flex-1 items-center justify-center space-y-2">
@@ -379,7 +379,7 @@ export function ChatWorkspace({
       >
         <div
           data-testid="chat-input-bounds"
-          className="mx-auto max-w-3xl w-full space-y-2"
+          className="mx-auto max-w-4xl w-full space-y-2"
         >
           {clarificationPrompt && (
             <ClarificationPrompt

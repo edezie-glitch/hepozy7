@@ -506,7 +506,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Medium Max-Width Centered Container Alignment (#21)', () => {
-    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-3xl', async () => {
+    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-4xl lg:max-w-5xl', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-u1',
@@ -529,7 +529,8 @@ describe('ChatWorkspace Component Integration', () => {
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toBeInTheDocument();
       expect(messageStreamContainer).toHaveClass('mx-auto');
-      expect(messageStreamContainer).toHaveClass('max-w-3xl');
+      expect(messageStreamContainer).toHaveClass('max-w-4xl');
+      expect(messageStreamContainer).toHaveClass('lg:max-w-5xl');
 
       const scrollViewport = screen.getByTestId('message-stream-scroll-viewport');
       expect(scrollViewport).toBeInTheDocument();
@@ -537,7 +538,7 @@ describe('ChatWorkspace Component Integration', () => {
       expect(scrollViewport).toContainElement(messageStreamContainer);
     });
 
-    it('ensures user and assistant message bubbles adhere to the medium max-width column across desktop viewports', async () => {
+    it('ensures user and assistant message bubbles adhere to column bounds with assistant spanning full width', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-u1',
@@ -561,7 +562,7 @@ describe('ChatWorkspace Component Integration', () => {
       const bubbles = screen.getAllByTestId('message-bubble');
       expect(bubbles).toHaveLength(2);
 
-      // Both bubbles are nested inside the centered max-w-3xl container
+      // Both bubbles are nested inside the centered message stream container
       expect(messageStreamContainer).toContainElement(bubbles[0]);
       expect(messageStreamContainer).toContainElement(bubbles[1]);
 
@@ -569,31 +570,33 @@ describe('ChatWorkspace Component Integration', () => {
       const userBubbleContainer = bubbles[0].closest('.flex-row-reverse');
       expect(userBubbleContainer).toHaveClass('sm:max-w-[78%]');
 
-      // Assistant bubble adheres to column flow
+      // Assistant bubble spans full width of the column
       const assistantBubbleContainer = bubbles[1].closest('.flex-row');
-      expect(assistantBubbleContainer).toHaveClass('sm:max-w-[92%]');
+      expect(assistantBubbleContainer).toHaveClass('w-full');
+      expect(assistantBubbleContainer).toHaveClass('max-w-full');
+      expect(assistantBubbleContainer).not.toHaveClass('sm:max-w-[92%]');
     });
 
-    it('shares identical horizontal max-w-3xl width bounds between bottom input bar container, clarification prompt, and empty conversation welcome card', async () => {
+    it('aligns horizontal bounds between bottom input bar container, clarification prompt, and empty conversation card with message stream being at least as wide as chatbox', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
 
       render(<ChatWorkspace conversationId="conv-1" />);
 
-      // Empty conversation welcome card is displayed and bounded by max-w-3xl
+      // Empty conversation welcome card is displayed and bounded by message stream container
       const emptyCard = await screen.findByTestId('empty-conversation-card');
       expect(emptyCard).toBeInTheDocument();
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toContainElement(emptyCard);
-      expect(messageStreamContainer).toHaveClass('max-w-3xl');
+      expect(messageStreamContainer).toHaveClass('max-w-4xl');
+      expect(messageStreamContainer).toHaveClass('lg:max-w-5xl');
 
-      // Bottom input bar container has identical max-w-3xl width bounds
+      // Bottom input bar container has max-w-4xl width bounds
       const inputBounds = screen.getByTestId('chat-input-bounds');
       expect(inputBounds).toBeInTheDocument();
-      expect(inputBounds).toHaveClass('max-w-3xl');
+      expect(inputBounds).toHaveClass('max-w-4xl');
       expect(inputBounds).toHaveClass('mx-auto');
-      expect(inputBounds).not.toHaveClass('max-w-4xl');
 
-      // When clarificationPrompt is active, it renders inside the same max-w-3xl input bounds
+      // When clarificationPrompt is active, it renders inside the input bounds
       act(() => {
         useChatStore.getState().setClarificationPrompt({
           suggestedReplies: ['Option A', 'Option B'],

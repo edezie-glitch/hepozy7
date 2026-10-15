@@ -182,7 +182,7 @@ export function MessageItem({
         className={`flex gap-3 sm:gap-3.5 ${
           isUser
             ? 'max-w-[85%] sm:max-w-[78%] flex-row-reverse'
-            : 'w-full max-w-full sm:max-w-[92%] flex-row'
+            : 'w-full max-w-full flex-row'
         }`}
       >
         {/* Assistant Avatar */}
