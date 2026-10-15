@@ -85,14 +85,8 @@ export function MarkdownTable({ className = '', children, ...props }: React.Comp
   };
 
   return (
-    <div
-      data-testid="table-block"
-      className="my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/30 shadow-xs"
-    >
-      <div className="flex items-center justify-between border-b border-border/60 bg-muted/60 px-4 py-1.5 text-xs">
-        <span className="font-mono text-xs font-medium text-muted-foreground lowercase select-none">
-          table
-        </span>
+    <div data-testid="table-block" className="my-3">
+      <div className="flex items-center justify-end mb-1">
         <button
           type="button"
           onClick={handleCopy}
@@ -112,7 +106,7 @@ export function MarkdownTable({ className = '', children, ...props }: React.Comp
           )}
         </button>
       </div>
-      <div className="table-container w-full overflow-x-auto scrollbar-thin">
+      <div className="table-container w-full overflow-x-auto rounded-lg border border-border/80 shadow-xs">
         <table
           ref={tableRef}
           className={`w-full border-collapse text-left text-xs sm:text-sm ${className}`}

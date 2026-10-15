@@ -72,21 +72,28 @@ describe('MarkdownContent Component', () => {
     expect(bodyRow).toHaveClass('hover:bg-muted/35');
   });
 
-  it('renders table container header with table label and copy table button', () => {
+  it('renders copy table button outside of the table without table label', () => {
     const tableMd = `
 | Col1 | Col2 |
 | :--- | :--- |
 | Val1 | Val2 |
 `;
-    render(<MarkdownContent content={tableMd} />);
+    const { container } = render(<MarkdownContent content={tableMd} />);
 
-    expect(screen.getByText('table')).toBeInTheDocument();
+    // Verify "table" label is removed
+    expect(screen.queryByText('table')).not.toBeInTheDocument();
+
     const copyBtn = screen.getByRole('button', { name: /copy table/i });
     expect(copyBtn).toBeInTheDocument();
     expect(copyBtn).toHaveTextContent(/copy table/i);
 
     const svgIcon = copyBtn.querySelector('svg');
     expect(svgIcon).toBeInTheDocument();
+
+    // Verify copy button is outside of the table container
+    const tableContainer = container.querySelector('.table-container');
+    expect(tableContainer).toBeInTheDocument();
+    expect(tableContainer).not.toContainElement(copyBtn);
   });
 
   it('renders fenced code blocks with language indicator and copy button', () => {
