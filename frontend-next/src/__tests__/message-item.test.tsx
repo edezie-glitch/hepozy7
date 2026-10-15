@@ -280,5 +280,122 @@ describe('MessageItem Component', () => {
     expect(screen.getByText('summary.pdf')).toBeInTheDocument();
     expect(screen.getByText('Here is the data export for review')).toBeInTheDocument();
   });
+
+  it('renders assistant message with borderless clean layout directly on canvas (no bg-card, no border, no rounded-2xl, no shadow-xs)', () => {
+    const assistantMsg: ChatMessageItem = {
+      id: 'msg-asst-borderless',
+      role: 'assistant',
+      content: 'Assistant response rendering borderless on canvas.',
+      created_at: '2026-10-14T10:00:00Z',
+    };
+
+    render(<MessageItem message={assistantMsg} animateTypewriter={false} />);
+
+    const bubble = screen.getByTestId('message-bubble');
+
+    // Verify borderless layout without card background, rounded container, or box shadow
+    expect(bubble.className).not.toContain('bg-card');
+    expect(bubble.className).not.toContain('border');
+    expect(bubble.className).not.toContain('rounded-2xl');
+    expect(bubble.className).not.toContain('shadow-xs');
+
+    // Verify native typography text-foreground
+    expect(bubble.className).toContain('text-foreground');
+  });
+
+  it('retains distinct bubble styling for user messages (bg-secondary, border, rounded-2xl, shadow-xs)', () => {
+    const userMsg: ChatMessageItem = {
+      id: 'msg-user-bubble',
+      role: 'user',
+      content: 'User message retaining bubble styling.',
+      created_at: '2026-10-14T10:00:00Z',
+    };
+
+    render(<MessageItem message={userMsg} />);
+
+    const bubble = screen.getByTestId('message-bubble');
+
+    // Verify user bubble retains distinct bubble styling
+    expect(bubble.className).toContain('bg-secondary');
+    expect(bubble.className).toContain('text-secondary-foreground');
+    expect(bubble.className).toContain('border');
+    expect(bubble.className).toContain('rounded-2xl');
+    expect(bubble.className).toContain('shadow-xs');
+  });
+
+  it('renders accessible hover and focus action toolbar with Copy, Retry, and Reply beneath assistant message', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const assistantMsg: ChatMessageItem = {
+      id: 'msg-asst-toolbar',
+      role: 'assistant',
+      content: 'Assistant response with toolbar.',
+      created_at: '2026-10-14T10:00:00Z',
+    };
+
+    const handleRetry = vi.fn();
+
+    render(
+      <MessageItem
+        message={assistantMsg}
+        animateTypewriter={false}
+        onRetry={handleRetry}
+      />
+    );
+
+    const copyBtn = screen.getByRole('button', { name: /copy message/i });
+    const replyBtn = screen.getByRole('button', { name: /reply to message/i });
+    const retryBtn = screen.getByRole('button', { name: /retry turn/i });
+
+    expect(copyBtn).toBeInTheDocument();
+    expect(replyBtn).toBeInTheDocument();
+    expect(retryBtn).toBeInTheDocument();
+
+    // Verify focus accessibility classes
+    const toolbar = copyBtn.closest('div');
+    expect(toolbar?.className).toContain('focus-within:opacity-100');
+
+    // Verify actual keyboard tab focus progression through toolbar
+    await user.tab();
+    expect(copyBtn).toHaveFocus();
+
+    await user.tab();
+    expect(replyBtn).toHaveFocus();
+
+    await user.tab();
+    expect(retryBtn).toHaveFocus();
+  });
+
+  it('renders markdown elements and generated document card cleanly within the borderless assistant flow without clipping', () => {
+    const richAssistantMsg: ChatMessageItem = {
+      id: 'msg-asst-rich-flow',
+      role: 'assistant',
+      content: '## Overview\n\n| Feature | Status |\n| :--- | :--- |\n| Layout | Borderless |\n\n```json\n{"status": "ok"}\n```',
+      created_at: '2026-10-14T10:00:00Z',
+      download_url: '/files/Report.docx',
+      file_name: 'Report.docx',
+      reply_to: 'User query about borderless assistant layout',
+    };
+
+    render(<MessageItem message={richAssistantMsg} animateTypewriter={false} />);
+
+    // Verify quote preview
+    expect(screen.getByText(/User query about borderless assistant layout/)).toBeInTheDocument();
+
+    // Verify markdown heading, table, codeblock
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Overview');
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('Borderless')).toBeInTheDocument();
+    expect(screen.getByText('json')).toBeInTheDocument();
+
+    // Verify generated document card is rendered
+    expect(screen.getByTestId('generated-document-card')).toBeInTheDocument();
+    expect(screen.getByText('Report.docx')).toBeInTheDocument();
+
+    // Verify bubble is borderless
+    const bubble = screen.getByTestId('message-bubble');
+    expect(bubble.className).not.toContain('bg-card');
+    expect(bubble.className).not.toContain('border');
+  });
 });
 

@@ -20,6 +20,9 @@ import {
   parseDocumentFormat,
 } from './generated-document-card';
 
+const ACTION_BUTTON_CLASS =
+  'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer';
+
 export interface MessageItemProps {
   message: ChatMessageItem;
   animateTypewriter?: boolean;
@@ -175,23 +178,29 @@ export function MessageItem({
         isUser ? 'items-end' : 'items-start'
       }`}
     >
-      <div className={`flex max-w-[85%] sm:max-w-[78%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div
+        className={`flex gap-3 sm:gap-3.5 ${
+          isUser
+            ? 'max-w-[85%] sm:max-w-[78%] flex-row-reverse'
+            : 'w-full max-w-full sm:max-w-[92%] flex-row'
+        }`}
+      >
         {/* Assistant Avatar */}
         {!isUser && (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-xs">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-xs mt-0.5">
             <Sparkles className="h-4 w-4" />
           </div>
         )}
 
-        <div className="flex flex-col gap-1 min-w-0">
-          {/* Main Bubble */}
+        <div className={`flex flex-col gap-1 min-w-0 ${isUser ? '' : 'flex-1'}`}>
+          {/* Main Bubble / Borderless Assistant Container */}
           <div
             data-testid="message-bubble"
             onClick={handleBubbleClick}
-            className={`relative rounded-2xl px-4 py-3 text-sm sm:text-base shadow-xs break-words transition-colors ${
+            className={`relative break-words transition-colors ${
               isUser
-                ? 'bg-secondary text-secondary-foreground border border-border/80 whitespace-pre-wrap'
-                : 'bg-card text-card-foreground border border-border/60'
+                ? 'rounded-2xl px-4 py-3 text-sm sm:text-base shadow-xs bg-secondary text-secondary-foreground border border-border/80 whitespace-pre-wrap'
+                : 'px-0 py-0.5 text-sm sm:text-base text-foreground'
             } ${isAnimating ? 'cursor-pointer hover:opacity-95' : ''}`}
           >
             {/* Reply Quote Preview */}
@@ -319,21 +328,21 @@ export function MessageItem({
 
           {/* Time & Action Toolbar */}
           <div
-            className={`flex items-center gap-2 px-1 text-xs text-muted-foreground ${
-              isUser ? 'justify-end' : 'justify-start'
+            className={`flex items-center gap-2 text-xs text-muted-foreground ${
+              isUser ? 'justify-end px-1' : 'justify-start px-0 pt-1'
             }`}
           >
             {formattedTime && <span className="opacity-70 text-[11px]">{formattedTime}</span>}
 
             {/* Message Action Tools */}
             {!isEditing && (
-              <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
                 {/* Copy Button */}
                 <button
                   type="button"
                   onClick={handleCopy}
                   aria-label="Copy message"
-                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className={ACTION_BUTTON_CLASS}
                 >
                   {copied ? (
                     <>
@@ -353,7 +362,7 @@ export function MessageItem({
                   type="button"
                   onClick={handleReply}
                   aria-label="Reply to message"
-                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                  className={ACTION_BUTTON_CLASS}
                 >
                   <Quote className="h-3 w-3 text-primary" />
                   <span>Reply</span>
@@ -365,7 +374,7 @@ export function MessageItem({
                     type="button"
                     onClick={handleStartEdit}
                     aria-label="Edit message"
-                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                    className={ACTION_BUTTON_CLASS}
                   >
                     <Pencil className="h-3 w-3" />
                     <span>Edit</span>
@@ -378,7 +387,7 @@ export function MessageItem({
                     type="button"
                     onClick={() => onRetry(message.id)}
                     aria-label="Retry turn"
-                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                    className={ACTION_BUTTON_CLASS}
                   >
                     <RotateCcw className="h-3 w-3 text-orange-500" />
                     <span>Retry</span>

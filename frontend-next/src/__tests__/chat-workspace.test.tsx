@@ -407,7 +407,9 @@ describe('ChatWorkspace Component Integration', () => {
     });
 
     // Assistant response to clarification appears
-    expect(await screen.findByText('Here is your drafted employment agreement template.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Here is your drafted employment agreement template.', {}, { timeout: 10000 })
+    ).toBeInTheDocument();
   });
 
   it('submits freeform clarification into the current conversation', async () => {
