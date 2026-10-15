@@ -32,6 +32,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('WorkspaceShell Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
 
     const mockSupabase = {
       auth: {
@@ -136,7 +137,21 @@ describe('WorkspaceShell Component', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('mobile-drawer-backdrop')).not.toBeInTheDocument();
     });
+
+    // Reopen mobile drawer and test closing via sidebar toggle button
+    await user.click(menuToggle);
+    expect(screen.getByTestId('mobile-drawer-panel')).toBeInTheDocument();
+
+    const mobilePanel = screen.getByTestId('mobile-drawer-panel');
+    const mobileToggleBtn = mobilePanel.querySelector('[data-testid="sidebar-toggle-button"]') as HTMLButtonElement;
+    expect(mobileToggleBtn).toBeInTheDocument();
+    await user.click(mobileToggleBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mobile-drawer-panel')).not.toBeInTheDocument();
+    });
   });
+
 
   it('opens and closes settings modal', async () => {
     const user = userEvent.setup();
@@ -156,4 +171,30 @@ describe('WorkspaceShell Component', () => {
       expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument();
     });
   });
+
+  it('toggles desktop sidebar between expanded and collapsed rail states', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<WorkspaceShell />);
+
+    const sidebarAside = container.querySelector('aside');
+    expect(sidebarAside).toBeInTheDocument();
+    expect(sidebarAside).toHaveClass('w-64');
+
+    // Click collapse toggle in sidebar
+    const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+    await user.click(collapseBtn);
+
+    expect(sidebarAside).toHaveClass('w-16');
+    expect(sidebarAside).not.toHaveClass('w-64');
+
+    // Main workspace welcome header remains visible
+    expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+
+    // Click expand button to restore
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expandBtn);
+
+    expect(sidebarAside).toHaveClass('w-64');
+  });
 });
+

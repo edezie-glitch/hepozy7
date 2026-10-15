@@ -28,6 +28,7 @@ function createWrapper() {
 describe('ConversationSidebar Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
 
     const mockSupabase = {
       auth: {
@@ -186,4 +187,186 @@ describe('ConversationSidebar Component', () => {
     expect(mutateMock).toHaveBeenCalledWith('conv-1');
     expect(onSelect).toHaveBeenCalledWith(null);
   });
+
+  it('replaces decorative AI chip with drawer toggle button that toggles between expanded and collapsed states', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    const { container } = render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveClass('w-64');
+
+    // Toggle button exists and has accessible label and expanded attribute
+    const toggleBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+    expect(toggleBtn).toBeInTheDocument();
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Decorative static AI chip text should no longer exist
+    expect(screen.queryByText(/^AI$/)).not.toBeInTheDocument();
+
+    // Click toggle to collapse
+    await user.click(toggleBtn);
+    expect(aside).toHaveClass('w-16');
+    expect(aside).not.toHaveClass('w-64');
+
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    expect(expandBtn).toBeInTheDocument();
+    expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
+
+    // Click toggle to expand
+    await user.click(expandBtn);
+    expect(aside).toHaveClass('w-64');
+  });
+
+  it('persistently renders Hepozy logo, New Chat button, Settings button, and User Avatar in collapsed state', async () => {
+    const user = userEvent.setup();
+    const onOpenSettings = vi.fn();
+    const onNewChat = vi.fn();
+
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={onNewChat}
+        onOpenSettings={onOpenSettings}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // Collapse the sidebar
+    await user.click(screen.getByRole('button', { name: /collapse sidebar/i }));
+
+    // Hepozy Logo
+    expect(screen.getByText('H')).toBeInTheDocument();
+
+    // New Chat (+) button in rail
+    const newChatBtn = screen.getByRole('button', { name: /new chat/i });
+    expect(newChatBtn).toBeInTheDocument();
+    await user.click(newChatBtn);
+    expect(onNewChat).toHaveBeenCalled();
+
+    // Settings button in rail
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    expect(settingsBtn).toBeInTheDocument();
+    await user.click(settingsBtn);
+    expect(onOpenSettings).toHaveBeenCalled();
+
+    // User Avatar profile dropdown
+    const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
+    expect(userProfileTrigger).toBeInTheDocument();
+  });
+
+  it('collapses search input and conversation list cleanly without horizontal overflow', async () => {
+    const user = userEvent.setup();
+    const mockConversations = [
+      { id: 'conv-1', title: 'React 19 Deep Dive', created_at: '2026-10-14T10:00:00Z' },
+    ];
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: mockConversations,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    const { container } = render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveClass('overflow-hidden');
+
+    expect(screen.getByPlaceholderText(/search conversations/i)).toBeInTheDocument();
+    expect(screen.getByText('React 19 Deep Dive')).toBeInTheDocument();
+
+    // Collapse
+    await user.click(screen.getByRole('button', { name: /collapse sidebar/i }));
+
+    // Search and conversations should not be displayed
+    expect(screen.queryByPlaceholderText(/search conversations/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('React 19 Deep Dive')).not.toBeInTheDocument();
+  });
+
+  it('persists collapsed state across localStorage and restores on mount', async () => {
+    window.localStorage.setItem('hepozy_sidebar_collapsed', 'true');
+
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    const { container, unmount } = render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const aside = container.querySelector('aside');
+    expect(aside).toHaveClass('w-16');
+    expect(screen.getByRole('button', { name: /expand sidebar/i })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /expand sidebar/i }));
+
+    expect(window.localStorage.getItem('hepozy_sidebar_collapsed')).toBe('false');
+
+    unmount();
+  });
+
+  it('supports keyboard navigation on drawer toggle button', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    const { container } = render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const aside = container.querySelector('aside');
+    const toggleBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+    toggleBtn.focus();
+    expect(toggleBtn).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(aside).toHaveClass('w-16');
+
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    expandBtn.focus();
+    await user.keyboard(' ');
+    expect(aside).toHaveClass('w-64');
+  });
 });
+

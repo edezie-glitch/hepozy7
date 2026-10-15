@@ -95,6 +95,8 @@ export function WorkspaceShell() {
                 activeId={activeConversationId}
                 onSelectConversation={handleSelectConversation}
                 onNewChat={handleNewChat}
+                isCollapsed={false}
+                onToggleCollapse={() => setMobileOpen(false)}
                 onOpenSettings={() => {
                   setMobileOpen(false);
                   setSettingsOpen(true);
