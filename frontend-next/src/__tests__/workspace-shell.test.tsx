@@ -208,5 +208,35 @@ describe('WorkspaceShell Component', () => {
 
     expect(sidebarAside).toHaveClass('w-64');
   });
+
+  it('constrains empty conversation welcome card and active conversation message stream to shared medium max-width bounds (#21)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<WorkspaceShell />);
+
+    // 1. Welcome canvas container shares mx-auto max-w-3xl bounds
+    const welcomeHeading = screen.getByRole('heading', {
+      name: /intelligence that works with your documents/i,
+    });
+    const welcomeContainer = welcomeHeading.closest('.max-w-3xl');
+    expect(welcomeContainer).toBeInTheDocument();
+    expect(welcomeContainer).toHaveClass('mx-auto');
+    expect(welcomeContainer).toHaveClass('w-full');
+
+    // 2. Switch to active conversation
+    await user.click(screen.getByText('First Workspace Chat'));
+
+    // Message stream container and chat input bar share identical max-w-3xl bounds
+    const streamContainer = await screen.findByTestId('message-stream-container');
+    expect(streamContainer).toBeInTheDocument();
+    expect(streamContainer).toHaveClass('mx-auto');
+    expect(streamContainer).toHaveClass('max-w-3xl');
+    expect(streamContainer).toHaveClass('w-full');
+
+    const inputBounds = screen.getByTestId('chat-input-bounds');
+    expect(inputBounds).toBeInTheDocument();
+    expect(inputBounds).toHaveClass('mx-auto');
+    expect(inputBounds).toHaveClass('max-w-3xl');
+    expect(inputBounds).toHaveClass('w-full');
+  });
 });
 

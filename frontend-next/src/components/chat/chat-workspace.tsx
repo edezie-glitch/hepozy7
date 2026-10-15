@@ -322,48 +322,65 @@ export function ChatWorkspace({
 
   return (
     <div className={`flex h-full w-full flex-col overflow-hidden ${className}`}>
-      {/* Scrollable Message List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-2">
-        {loadingHistory ? (
-          <div className="flex h-full items-center justify-center space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 animate-spin text-primary" />
-              <span>Loading messages...</span>
+      {/* Scrollable Message List Viewport with Pane-Docked Scrollbar */}
+      <div
+        data-testid="message-stream-scroll-viewport"
+        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+      >
+        <div
+          data-testid="message-stream-container"
+          className="mx-auto flex min-h-full max-w-3xl w-full flex-col space-y-2"
+        >
+          {loadingHistory ? (
+            <div className="flex flex-1 items-center justify-center space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 animate-spin text-primary" />
+                <span>Loading messages...</span>
+              </div>
             </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center p-6 text-muted-foreground">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
-              <Sparkles className="h-6 w-6" />
+          ) : messages.length === 0 ? (
+            <div
+              data-testid="empty-conversation-card"
+              className="flex flex-1 flex-col items-center justify-center text-center p-6 text-muted-foreground"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">Conversation Ready</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                Send a message below to consult Hepozy Assistant or ask for document analysis.
+              </p>
             </div>
-            <h3 className="text-base font-semibold text-foreground">Conversation Ready</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Send a message below to consult Hepozy Assistant or ask for document analysis.
-            </p>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              animateTypewriter={msg.id === latestAnimatedAssistantMessageId}
-              onTypewriterComplete={() => {
-                setLatestAnimatedAssistantMessageId(null);
-                setIsGenerating(false);
-                setActiveRequestId(null);
-                setAbortController(null);
-              }}
-              onRetry={handleRetry}
-              onEditSubmit={handleEditSubmit}
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
+          ) : (
+            messages.map((msg) => (
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                animateTypewriter={msg.id === latestAnimatedAssistantMessageId}
+                onTypewriterComplete={() => {
+                  setLatestAnimatedAssistantMessageId(null);
+                  setIsGenerating(false);
+                  setActiveRequestId(null);
+                  setAbortController(null);
+                }}
+                onRetry={handleRetry}
+                onEditSubmit={handleEditSubmit}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Sticky Bottom Input Bar */}
-      <div className="border-t border-border/60 bg-background/95 backdrop-blur-xs p-3 sm:p-4">
-        <div className="mx-auto max-w-4xl space-y-2">
+      <div
+        data-testid="chat-bottom-bar"
+        className="border-t border-border/60 bg-background/95 backdrop-blur-xs px-4 py-3 sm:px-6 sm:py-4"
+      >
+        <div
+          data-testid="chat-input-bounds"
+          className="mx-auto max-w-3xl w-full space-y-2"
+        >
           {clarificationPrompt && (
             <ClarificationPrompt
               suggestedReplies={clarificationPrompt.suggestedReplies}
