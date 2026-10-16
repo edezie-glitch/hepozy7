@@ -41,3 +41,18 @@ export async function deleteConversation(id: string): Promise<{ status: string }
     method: 'DELETE',
   });
 }
+
+export const OPTIMISTIC_CONVERSATION_PREFIX = 'opt_';
+
+export function isOptimisticConversationId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  return id.startsWith(OPTIMISTIC_CONVERSATION_PREFIX);
+}
+
+export function generateOptimisticConversationId(): string {
+  const uuid =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  return `${OPTIMISTIC_CONVERSATION_PREFIX}${uuid}`;
+}

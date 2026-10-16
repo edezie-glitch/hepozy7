@@ -49,6 +49,7 @@ export interface ChatStoreState {
     shownText?: string
   ) => void;
   resetInput: (revokeUrls?: boolean) => void;
+  resetWorkspaceState: (revokeUrls?: boolean) => void;
 
   stageFiles: (files: File[]) => {
     added: StagedAttachment[];
@@ -190,6 +191,15 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       inputDraft: '',
       inputPrompt: '',
       replyingTo: null,
+    });
+  },
+
+  resetWorkspaceState: (revokeUrls = true) => {
+    get().resetInput(revokeUrls);
+    set({
+      editingMessageId: null,
+      clarificationPrompt: null,
+      quotaExceeded: null,
     });
   },
 }));

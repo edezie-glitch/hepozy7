@@ -138,5 +138,27 @@ describe('useChatStore', () => {
     useChatStore.getState().clearQuotaExceeded();
     expect(useChatStore.getState().quotaExceeded).toBeNull();
   });
+
+  it('resets workspace state including staged attachments, quotes, and drafts', () => {
+    const file = new File(['test'], 'test.png', { type: 'image/png' });
+    useChatStore.getState().stageFiles([file]);
+    useChatStore.getState().setInputPrompt('some draft');
+    useChatStore.getState().setReplyingTo({ text: 'quote', messageId: 'm1' });
+    useChatStore.getState().setClarificationPrompt({ suggestedReplies: ['A'] });
+    useChatStore.getState().setEditingMessageId('edit-1');
+
+    expect(useChatStore.getState().stagedAttachments.length).toBe(1);
+    expect(useChatStore.getState().inputPrompt).toBe('some draft');
+    expect(useChatStore.getState().replyingTo).not.toBeNull();
+
+    useChatStore.getState().resetWorkspaceState();
+
+    expect(useChatStore.getState().stagedAttachments).toEqual([]);
+    expect(useChatStore.getState().inputDraft).toBe('');
+    expect(useChatStore.getState().inputPrompt).toBe('');
+    expect(useChatStore.getState().replyingTo).toBeNull();
+    expect(useChatStore.getState().editingMessageId).toBeNull();
+    expect(useChatStore.getState().clarificationPrompt).toBeNull();
+  });
 });
 

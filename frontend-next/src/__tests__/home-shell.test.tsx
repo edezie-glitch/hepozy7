@@ -24,4 +24,15 @@ describe('Home Shell Page', () => {
     expect(ctaButton).toBeInTheDocument();
     expect(ctaButton).toHaveClass('bg-primary');
   });
+
+  it('clicking Start Conversation instantly switches to active chat input', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default;
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const ctaButton = screen.getByRole('button', { name: /start conversation/i });
+    await user.click(ctaButton);
+
+    expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
+  });
 });

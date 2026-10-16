@@ -4,7 +4,10 @@ import * as React from 'react';
 import { ConversationSidebar } from '@/components/workspace/conversation-sidebar';
 import { SettingsModal } from '@/components/workspace/settings-modal';
 import { ChatWorkspace } from '@/components/chat/chat-workspace';
-import { useCreateConversation } from '@/hooks/use-conversations';
+import { CONVERSATIONS_QUERY_KEY } from '@/hooks/use-conversations';
+import { generateOptimisticConversationId } from '@/lib/api/conversations';
+import { useChatStore } from '@/stores/use-chat-store';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MessageSquare, FileText, Search, X, Menu } from 'lucide-react';
 
@@ -13,13 +16,13 @@ export function WorkspaceShell() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
-  const createConversationMutation = useCreateConversation();
+  const queryClient = useQueryClient();
 
   const handleEnsureConversation = React.useCallback(async () => {
-    const newConv = await createConversationMutation.mutateAsync();
-    setActiveConversationId(newConv.id);
-    return newConv.id;
-  }, [createConversationMutation]);
+    const optimisticId = generateOptimisticConversationId();
+    setActiveConversationId(optimisticId);
+    return optimisticId;
+  }, []);
 
   const handleSelectConversation = (id: string | null) => {
     setActiveConversationId(id);
@@ -27,16 +30,17 @@ export function WorkspaceShell() {
   };
 
   const handleNewChat = () => {
+    // Instantly resets workspace message state, draft attachments, and quote context
+    useChatStore.getState().resetWorkspaceState(true);
     setActiveConversationId(null);
     setMobileOpen(false);
   };
 
-  const handleStartConversation = async () => {
-    try {
-      await handleEnsureConversation();
-    } catch (e) {
-      console.error('Failed to start conversation', e);
-    }
+  const handleStartConversation = () => {
+    // 0ms perceived latency: generate client-side optimistic ID without blocking on server
+    const optimisticId = generateOptimisticConversationId();
+    useChatStore.getState().resetWorkspaceState(true);
+    setActiveConversationId(optimisticId);
   };
 
   return (
@@ -188,6 +192,10 @@ export function WorkspaceShell() {
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
               <ChatWorkspace
                 conversationId={activeConversationId}
+                onConversationCreated={(persistedId) => {
+                  setActiveConversationId(persistedId);
+                  queryClient.invalidateQueries({ queryKey: CONVERSATIONS_QUERY_KEY });
+                }}
                 onEnsureConversation={handleEnsureConversation}
               />
             </div>

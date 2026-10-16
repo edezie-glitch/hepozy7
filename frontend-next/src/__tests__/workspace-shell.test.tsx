@@ -121,6 +121,60 @@ describe('WorkspaceShell Component', () => {
     expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
   });
 
+  it('instantly transitions to active chat input without delay or network roundtrip when clicking Start Conversation (#20)', async () => {
+    const user = userEvent.setup();
+    const historySpy = vi.spyOn(chatApi, 'getChatHistory');
+
+    renderWithProviders(<WorkspaceShell />);
+
+    // Initially at empty home shell
+    const startBtn = screen.getByRole('button', { name: /start conversation/i });
+    expect(startBtn).toBeInTheDocument();
+
+    // Click Start Conversation
+    await user.click(startBtn);
+
+    // Instantly transitions to active chat input
+    expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
+    expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+
+    // Zero redundant history calls
+    expect(historySpy).not.toHaveBeenCalled();
+  });
+
+  it('instantly resets workspace message state, draft attachments, and quote context when clicking New Chat (#20)', async () => {
+    const user = userEvent.setup();
+    const { useChatStore } = await import('@/stores/use-chat-store');
+
+    // Pre-populate store with staged attachment, draft, and quote context
+    const testFile = new File(['hello'], 'document.pdf', { type: 'application/pdf' });
+    useChatStore.getState().stageFiles([testFile]);
+    useChatStore.getState().setInputPrompt('Work in progress draft');
+    useChatStore.getState().setReplyingTo({ text: 'Quote reply context', messageId: 'm-1' });
+
+    expect(useChatStore.getState().stagedAttachments.length).toBe(1);
+    expect(useChatStore.getState().replyingTo).not.toBeNull();
+    expect(useChatStore.getState().inputPrompt).toBe('Work in progress draft');
+
+    renderWithProviders(<WorkspaceShell />);
+
+    // Select an active conversation
+    await user.click(screen.getByText('First Workspace Chat'));
+    expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
+
+    // Click New Chat
+    await user.click(screen.getByRole('button', { name: /new chat/i }));
+
+    // Resets to home shell without awaiting network
+    expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+
+    // Workspace state in store is completely reset
+    expect(useChatStore.getState().stagedAttachments).toEqual([]);
+    expect(useChatStore.getState().replyingTo).toBeNull();
+    expect(useChatStore.getState().inputPrompt).toBe('');
+    expect(useChatStore.getState().inputDraft).toBe('');
+  });
+
   it('toggles mobile slide-out drawer via floating drawer trigger when drawer is closed', async () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);

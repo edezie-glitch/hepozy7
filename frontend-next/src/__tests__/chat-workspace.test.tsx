@@ -627,6 +627,61 @@ describe('ChatWorkspace Component Integration', () => {
       expect(bottomBar).toHaveClass('px-4');
     });
   });
+
+  it('does not fetch chat history for optimistic conversation IDs and defers persistence to first message', async () => {
+    const user = userEvent.setup();
+    const historySpy = vi.spyOn(chatApi, 'getChatHistory');
+    const sendSpy = vi.spyOn(chatApi, 'sendChatMessage').mockResolvedValueOnce({
+      reply: 'Deferred persistence initial response',
+      conversation_id: 'real-persisted-conv-123',
+      user_message_id: 'u-1',
+      assistant_message_id: 'a-1',
+      needs_clarification: false,
+      quota_exceeded: false,
+    });
+    const onCreatedSpy = vi.fn();
+
+    const { rerender } = render(
+      <ChatWorkspace
+        conversationId="opt_test_123"
+        onConversationCreated={onCreatedSpy}
+      />
+    );
+
+    // No network call for history
+    expect(historySpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+    expect(screen.getByText('Conversation Ready')).toBeInTheDocument();
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'First message in new chat{enter}');
+
+    // Message sent with conversation_id: null
+    await waitFor(() => {
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'First message in new chat',
+          conversation_id: null,
+        }),
+        expect.any(AbortSignal)
+      );
+    });
+
+    // On response, onConversationCreated is notified with real conversation ID
+    await waitFor(() => {
+      expect(onCreatedSpy).toHaveBeenCalledWith('real-persisted-conv-123');
+    });
+
+    // Parent updates conversationId to the persisted ID; must NOT trigger redundant history fetch
+    rerender(
+      <ChatWorkspace
+        conversationId="real-persisted-conv-123"
+        onConversationCreated={onCreatedSpy}
+      />
+    );
+
+    expect(historySpy).not.toHaveBeenCalled();
+  });
 });
 
 

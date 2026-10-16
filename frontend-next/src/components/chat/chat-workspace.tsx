@@ -14,17 +14,24 @@ import { ChatInput } from '@/components/chat/chat-input';
 import { ClarificationPrompt } from '@/components/chat/clarification-prompt';
 import { QuotaExceededModal } from '@/components/chat/quota-exceeded-modal';
 import { serializeAttachment } from '@/lib/attachments';
+import { isOptimisticConversationId } from '@/lib/api/conversations';
 import { Sparkles } from 'lucide-react';
 
 export interface ChatWorkspaceProps {
   conversationId: string | null;
   onEnsureConversation?: () => Promise<string>;
+  onConversationCreated?: (persistedConversationId: string) => void;
   className?: string;
+}
+
+function getPersistableConversationId(id: string | null | undefined): string | null {
+  return id && !isOptimisticConversationId(id) ? id : null;
 }
 
 export function ChatWorkspace({
   conversationId,
   onEnsureConversation,
+  onConversationCreated,
   className = '',
 }: ChatWorkspaceProps) {
   const [messages, setMessages] = React.useState<ChatMessageItem[]>([]);
@@ -33,6 +40,7 @@ export function ChatWorkspace({
     React.useState<string | null>(null);
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const upgradedConversationIdRef = React.useRef<string | null>(null);
 
   const replyingTo = useChatStore((state) => state.replyingTo);
   const resetInput = useChatStore((state) => state.resetInput);
@@ -58,14 +66,23 @@ export function ChatWorkspace({
   React.useEffect(() => {
     let active = true;
 
-    if (!conversationId) {
+    if (!conversationId || isOptimisticConversationId(conversationId)) {
       queueMicrotask(() => {
         if (active) {
           setMessages([]);
+          setLoadingHistory(false);
           clearClarificationPrompt();
           clearQuotaExceeded();
         }
       });
+      return () => {
+        active = false;
+      };
+    }
+
+    // Skip redundant history refetch when this conversation was upgraded in-place from an optimistic ID
+    if (upgradedConversationIdRef.current === conversationId) {
+      upgradedConversationIdRef.current = null;
       return () => {
         active = false;
       };
@@ -115,6 +132,7 @@ export function ChatWorkspace({
     if (!targetConvId && onEnsureConversation) {
       targetConvId = await onEnsureConversation();
     }
+    const convIdForApi = getPersistableConversationId(targetConvId);
 
     const currentStaged = [...useChatStore.getState().stagedAttachments];
     const effectiveMessageContent =
@@ -164,7 +182,7 @@ export function ChatWorkspace({
       const response = await sendChatMessage(
         {
           message: effectiveMessageContent,
-          conversation_id: targetConvId,
+          conversation_id: convIdForApi,
           request_id: requestId,
           reply_to: quoteContext || null,
           attachments: encodedAttachments.length > 0 ? encodedAttachments : undefined,
@@ -224,6 +242,11 @@ export function ChatWorkspace({
 
       setLatestAnimatedAssistantMessageId(asstId);
       setMessages((prev) => [...prev, assistantMsg]);
+
+      if (response.conversation_id && onConversationCreated) {
+        upgradedConversationIdRef.current = response.conversation_id;
+        onConversationCreated(response.conversation_id);
+      }
     } catch (err: unknown) {
       const error = err as Error;
       if (error.name === 'AbortError') {
@@ -258,7 +281,7 @@ export function ChatWorkspace({
       try {
         await stopChat({
           request_id: requestId,
-          conversation_id: conversationId,
+          conversation_id: getPersistableConversationId(conversationId),
           shown_text: shownText,
         });
       } catch (e) {
@@ -299,10 +322,11 @@ export function ChatWorkspace({
     const userMsg = messages.find((m) => m.id === messageId);
     if (!userMsg) return;
 
-    if (conversationId) {
+    const persistableConvId = getPersistableConversationId(conversationId);
+    if (persistableConvId) {
       try {
         await editChatMessage({
-          conversation_id: conversationId,
+          conversation_id: persistableConvId,
           message_id: messageId,
           original_text: userMsg.content,
         });

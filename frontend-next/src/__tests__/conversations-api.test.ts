@@ -4,6 +4,8 @@ import {
   createConversation,
   updateConversationTitle,
   deleteConversation,
+  generateOptimisticConversationId,
+  isOptimisticConversationId,
 } from '@/lib/api/conversations';
 import * as apiClient from '@/lib/api-client';
 
@@ -66,5 +68,21 @@ describe('Conversations API Client', () => {
       method: 'DELETE',
     });
     expect(result).toEqual({ status: 'ok' });
+  });
+
+  it('generates optimistic conversation ID prefixed with opt_', () => {
+    const id = generateOptimisticConversationId();
+    expect(id).toMatch(/^opt_/);
+    expect(isOptimisticConversationId(id)).toBe(true);
+  });
+
+  it('correctly identifies optimistic conversation IDs', () => {
+    expect(isOptimisticConversationId('opt_123')).toBe(true);
+    expect(isOptimisticConversationId('opt_any_random_uuid')).toBe(true);
+    expect(isOptimisticConversationId('local_456')).toBe(false);
+    expect(isOptimisticConversationId('new')).toBe(false);
+    expect(isOptimisticConversationId('conv-real-uuid')).toBe(false);
+    expect(isOptimisticConversationId(null)).toBe(false);
+    expect(isOptimisticConversationId(undefined)).toBe(false);
   });
 });
