@@ -49,6 +49,57 @@ function setStoredSidebarCollapsed(value: boolean) {
   }
 }
 
+interface PreferenceControlsProps {
+  onOpenSettings?: () => void;
+  tooltipSide?: 'top' | 'right';
+  direction?: 'row' | 'col';
+}
+
+function PreferenceControls({
+  onOpenSettings,
+  tooltipSide = 'top',
+  direction = 'row',
+}: PreferenceControlsProps) {
+  return (
+    <div
+      className={cn(
+        'flex items-center',
+        direction === 'col' ? 'flex-col gap-2' : 'gap-1'
+      )}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenSettings}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/70 cursor-pointer"
+              aria-label="Open settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          }
+        />
+        <TooltipContent side={tooltipSide}>Settings</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <ThemeToggle
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/70 cursor-pointer"
+            />
+          }
+        />
+        <TooltipContent side={tooltipSide}>Toggle theme</TooltipContent>
+      </Tooltip>
+    </div>
+  );
+}
+
 interface ConversationSidebarProps {
   activeId: string | null;
   onSelectConversation: (id: string | null) => void;
@@ -276,75 +327,37 @@ export function ConversationSidebar({
         <div className="flex-1" aria-hidden="true" />
       )}
 
-      {/* Footer Controls: Settings trigger, Theme toggle, and User Profile */}
-      <div className={cn('border-t border-border/70 p-2 flex flex-col gap-2', collapsed && 'items-center')}>
+
+      {/* Footer Controls: User Profile, Settings trigger, and Theme toggle */}
+      <div
+        className={cn(
+          'border-t border-border/70 p-2 flex flex-col gap-2',
+          collapsed ? 'items-center justify-center' : 'w-full'
+        )}
+        data-testid="sidebar-footer"
+      >
         {collapsed ? (
           <>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <ThemeToggle
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                  />
-                }
-              />
-              <TooltipContent side="right">Toggle theme</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onOpenSettings}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                    aria-label="Open settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="right">Settings</TooltipContent>
-            </Tooltip>
-
             <UserProfileDropdown onOpenSettings={onOpenSettings} showName={false} />
+            <PreferenceControls
+              onOpenSettings={onOpenSettings}
+              tooltipSide="right"
+              direction="col"
+            />
           </>
         ) : (
-          <div className="flex items-center justify-between gap-1 w-full">
-            <div className="flex-1 min-w-0">
-              <UserProfileDropdown onOpenSettings={onOpenSettings} showName={true} />
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={onOpenSettings}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                      aria-label="Open settings"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  }
-                />
-                <TooltipContent side="top">Settings</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <ThemeToggle
-                      variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                    />
-                  }
-                />
-                <TooltipContent side="top">Toggle theme</TooltipContent>
-              </Tooltip>
+          <div className="flex flex-col gap-1.5 w-full">
+            <UserProfileDropdown
+              onOpenSettings={onOpenSettings}
+              showName={true}
+              className="w-full"
+            />
+            <div className="flex items-center justify-end px-1">
+              <PreferenceControls
+                onOpenSettings={onOpenSettings}
+                tooltipSide="top"
+                direction="row"
+              />
             </div>
           </div>
         )}

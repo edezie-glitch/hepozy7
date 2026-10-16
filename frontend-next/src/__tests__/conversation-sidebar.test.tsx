@@ -312,6 +312,100 @@ describe('ConversationSidebar Component', () => {
     expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
   });
 
+  it('renders refined footer layout with full-width user profile and graceful truncation in expanded mode (#27)', async () => {
+    const mockLongUser = {
+      id: 'user-long',
+      email: 'alexander.montgomery.longemail@corporation.example.com',
+      user_metadata: { username: 'Alexander Montgomery The Third' },
+    };
+    vi.spyOn(clientModule, 'createClient').mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockLongUser },
+          error: null,
+        }),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+      },
+    } as unknown as ReturnType<typeof clientModule.createClient>);
+
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+        isCollapsed={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // User profile trigger spans full width and has comfortable padding
+    const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
+    expect(userProfileTrigger).toHaveClass('w-full');
+    expect(userProfileTrigger).toHaveClass('px-2.5');
+    expect(userProfileTrigger).toHaveClass('py-2');
+    expect(userProfileTrigger).toHaveClass('hover:bg-accent/70');
+
+    // Long username and email with graceful truncation and title attributes
+    const usernameEl = await screen.findByText('Alexander Montgomery The Third');
+    expect(usernameEl).toHaveClass('truncate');
+    expect(usernameEl).toHaveAttribute('title', 'Alexander Montgomery The Third');
+
+    const emailEl = screen.getByText('alexander.montgomery.longemail@corporation.example.com');
+    expect(emailEl).toHaveClass('truncate');
+    expect(emailEl).toHaveAttribute('title', 'alexander.montgomery.longemail@corporation.example.com');
+
+    // Settings and Theme toggle share uniform sizing and hover tokens
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    const themeBtn = screen.getByRole('button', { name: /toggle theme/i });
+    expect(settingsBtn).toHaveClass('h-8');
+    expect(settingsBtn).toHaveClass('w-8');
+    expect(settingsBtn).toHaveClass('hover:bg-accent/70');
+    expect(themeBtn).toHaveClass('h-8');
+    expect(themeBtn).toHaveClass('w-8');
+    expect(themeBtn).toHaveClass('hover:bg-accent/70');
+  });
+
+  it('renders centered vertical stack with uniform touch targets and right-aligned tooltips in collapsed rail mode (#27)', async () => {
+    vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+    render(
+      <ConversationSidebar
+        activeId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={vi.fn()}
+        isCollapsed={true}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    // Footer container is centered
+    const footer = screen.getByTestId('sidebar-footer');
+    expect(footer).toHaveClass('items-center');
+    expect(footer).toHaveClass('justify-center');
+
+    // Controls share uniform 32x32px targets
+    const themeBtn = screen.getByRole('button', { name: /toggle theme/i });
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
+
+    expect(themeBtn).toHaveClass('h-8');
+    expect(themeBtn).toHaveClass('w-8');
+    expect(settingsBtn).toHaveClass('h-8');
+    expect(settingsBtn).toHaveClass('w-8');
+    expect(userProfileTrigger).toHaveClass('h-8');
+    expect(userProfileTrigger).toHaveClass('w-8');
+  });
+
   it('collapses search input and conversation list cleanly without horizontal overflow', async () => {
     const user = userEvent.setup();
     const mockConversations = [

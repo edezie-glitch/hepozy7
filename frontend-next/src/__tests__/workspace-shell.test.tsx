@@ -240,5 +240,29 @@ describe('WorkspaceShell Component', () => {
     expect(inputBounds).toHaveClass('max-w-4xl');
     expect(inputBounds).toHaveClass('w-full');
   });
+
+  it('preserves clean footer layout with full-width user profile in mobile navigation drawer (#27)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<WorkspaceShell />);
+
+    // Open mobile drawer
+    const menuToggle = screen.getByRole('button', { name: /toggle navigation menu/i });
+    await user.click(menuToggle);
+
+    const mobilePanel = screen.getByTestId('mobile-drawer-panel');
+    expect(mobilePanel).toBeInTheDocument();
+
+    // Mobile drawer contains Preferences header and full-width user profile menu
+    const preferencesHeader = mobilePanel.querySelector('span.uppercase');
+    expect(preferencesHeader).toBeInTheDocument();
+
+    const mobileUserProfile = screen.getAllByLabelText(/user profile menu/i).find((el) =>
+      mobilePanel.contains(el)
+    );
+    expect(mobileUserProfile).toBeInTheDocument();
+    expect(mobileUserProfile).toHaveClass('w-full');
+    expect(mobileUserProfile).toHaveClass('px-2.5');
+    expect(mobileUserProfile).toHaveClass('py-2');
+  });
 });
 
