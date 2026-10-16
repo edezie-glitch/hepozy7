@@ -13,9 +13,9 @@ describe('Home Shell Page', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the theme toggle button in the header', () => {
+  it('renders the settings trigger for workspace configuration', () => {
     render(<Home />);
-    expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
   });
 
   it('renders brand primary action button', () => {

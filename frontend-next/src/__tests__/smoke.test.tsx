@@ -30,8 +30,13 @@ describe('Application End-to-End Smoke Test', () => {
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveClass('bg-primary');
 
+    // Open settings to access theme toggle
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    expect(settingsBtn).toBeInTheDocument();
+    fireEvent.click(settingsBtn);
+
     // Find and click the theme toggle
-    const toggle = screen.getByRole('button', { name: /toggle theme/i });
+    const toggle = await screen.findByRole('button', { name: /toggle theme/i });
     expect(toggle).toBeInTheDocument();
 
     // Toggle to dark theme

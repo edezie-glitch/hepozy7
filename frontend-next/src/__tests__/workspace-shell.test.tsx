@@ -86,8 +86,8 @@ describe('WorkspaceShell Component', () => {
     // Settings modal trigger
     expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
 
-    // Theme toggle
-    expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
+    // Theme toggle is removed from sidebar footer
+    expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
 
     // Full height welcome canvas
     expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
