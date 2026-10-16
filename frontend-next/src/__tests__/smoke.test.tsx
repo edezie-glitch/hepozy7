@@ -30,10 +30,13 @@ describe('Application End-to-End Smoke Test', () => {
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveClass('bg-primary');
 
-    // Open settings to access theme toggle
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
-    expect(settingsBtn).toBeInTheDocument();
-    fireEvent.click(settingsBtn);
+    // Open user profile dropdown to access settings modal and theme toggle
+    const profileTrigger = screen.getAllByLabelText(/user profile menu/i)[0];
+    expect(profileTrigger).toBeInTheDocument();
+    fireEvent.click(profileTrigger);
+
+    const settingsMenuItem = await screen.findByRole('menuitem', { name: /settings/i });
+    fireEvent.click(settingsMenuItem);
 
     // Find and click the theme toggle
     const toggle = await screen.findByRole('button', { name: /toggle theme/i });

@@ -230,9 +230,8 @@ describe('ConversationSidebar Component', () => {
     expect(aside).toHaveClass('w-64');
   });
 
-  it('persistently renders Hepozy logo, New Chat button, Settings button, and User Avatar in collapsed state', async () => {
+  it('persistently renders Hepozy logo, New Chat button, and User Avatar in collapsed state', async () => {
     const user = userEvent.setup();
-    const onOpenSettings = vi.fn();
     const onNewChat = vi.fn();
 
     vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
@@ -246,7 +245,6 @@ describe('ConversationSidebar Component', () => {
         activeId={null}
         onSelectConversation={vi.fn()}
         onNewChat={onNewChat}
-        onOpenSettings={onOpenSettings}
       />,
       { wrapper: createWrapper() }
     );
@@ -263,21 +261,16 @@ describe('ConversationSidebar Component', () => {
     await user.click(newChatBtn);
     expect(onNewChat).toHaveBeenCalled();
 
-    // Theme toggle is removed from footer
+    // Theme toggle and standalone settings button are removed from footer
     expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
-
-    // Settings button in rail
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
-    expect(settingsBtn).toBeInTheDocument();
-    await user.click(settingsBtn);
-    expect(onOpenSettings).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /open settings/i })).not.toBeInTheDocument();
 
     // User Avatar profile dropdown
     const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
     expect(userProfileTrigger).toBeInTheDocument();
   });
 
-  it('renders User Profile and Settings button without theme toggle in expanded sidebar footer', async () => {
+  it('renders User Profile in expanded sidebar footer without settings or theme button', async () => {
     const user = userEvent.setup();
     const onOpenSettings = vi.fn();
 
@@ -299,16 +292,19 @@ describe('ConversationSidebar Component', () => {
     );
 
     // User Profile dropdown
-    expect(screen.getByLabelText(/user profile menu/i)).toBeInTheDocument();
+    const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
+    expect(userProfileTrigger).toBeInTheDocument();
 
-    // Settings trigger in expanded footer to the right of the account name
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
-    expect(settingsBtn).toBeInTheDocument();
-    await user.click(settingsBtn);
-    expect(onOpenSettings).toHaveBeenCalled();
-
-    // Theme toggle is removed from footer
+    // Standalone settings and theme buttons are removed from footer
+    expect(screen.queryByRole('button', { name: /open settings/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
+
+    // Settings is accessible via User Profile menu
+    await user.click(userProfileTrigger);
+    const settingsMenuItem = screen.getByRole('menuitem', { name: /settings/i });
+    expect(settingsMenuItem).toBeInTheDocument();
+    await user.click(settingsMenuItem);
+    expect(onOpenSettings).toHaveBeenCalled();
   });
 
   it('renders refined footer layout with full-width user profile and graceful truncation in expanded mode (#27)', async () => {
@@ -359,13 +355,8 @@ describe('ConversationSidebar Component', () => {
     expect(emailEl).toHaveClass('truncate');
     expect(emailEl).toHaveAttribute('title', 'alexander.montgomery.longemail@corporation.example.com');
 
-    // Settings icon is at the right side of the account name
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
-    expect(settingsBtn).toHaveClass('h-8');
-    expect(settingsBtn).toHaveClass('w-8');
-    expect(settingsBtn).toHaveClass('hover:bg-accent/70');
-
-    // Theme toggle is removed from footer
+    // Standalone settings and theme buttons are removed from footer
+    expect(screen.queryByRole('button', { name: /open settings/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
   });
 
@@ -391,15 +382,12 @@ describe('ConversationSidebar Component', () => {
     expect(footer).toHaveClass('items-center');
     expect(footer).toHaveClass('justify-center');
 
-    // Theme toggle is removed from footer
+    // Standalone theme and settings buttons are removed from footer
     expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open settings/i })).not.toBeInTheDocument();
 
-    // Controls share uniform 32x32px targets
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    // User profile trigger shares uniform target
     const userProfileTrigger = screen.getByLabelText(/user profile menu/i);
-
-    expect(settingsBtn).toHaveClass('h-8');
-    expect(settingsBtn).toHaveClass('w-8');
     expect(userProfileTrigger).toHaveClass('h-8');
     expect(userProfileTrigger).toHaveClass('w-8');
   });

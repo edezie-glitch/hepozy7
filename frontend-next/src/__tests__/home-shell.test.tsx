@@ -13,9 +13,9 @@ describe('Home Shell Page', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the settings trigger for workspace configuration', () => {
+  it('renders the user profile menu trigger for workspace configuration', () => {
     render(<Home />);
-    expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/user profile menu/i)[0]).toBeInTheDocument();
   });
 
   it('renders brand primary action button', () => {

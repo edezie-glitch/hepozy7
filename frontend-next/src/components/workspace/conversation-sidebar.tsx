@@ -8,7 +8,6 @@ import {
   Trash2,
   PanelLeftClose,
   PanelLeft,
-  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,39 +47,6 @@ function setStoredSidebarCollapsed(value: boolean) {
   }
 }
 
-interface SettingsButtonProps {
-  onOpenSettings?: () => void;
-  tooltipSide?: 'top' | 'right';
-  className?: string;
-}
-
-function SettingsButton({
-  onOpenSettings,
-  tooltipSide = 'top',
-  className,
-}: SettingsButtonProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onOpenSettings}
-            className={cn(
-              'h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground hover:bg-accent/70 cursor-pointer',
-              className
-            )}
-            aria-label="Open settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        }
-      />
-      <TooltipContent side={tooltipSide}>Settings</TooltipContent>
-    </Tooltip>
-  );
-}
 
 interface ConversationSidebarProps {
   activeId: string | null;
@@ -310,40 +276,22 @@ export function ConversationSidebar({
       )}
 
 
-      {/* Footer Controls: User Profile and Settings trigger */}
+      {/* Footer Controls: User Profile */}
       <div
         className={cn(
           'border-t border-border/70 p-2 flex',
-          collapsed
-            ? 'flex-col items-center justify-center gap-2'
-            : 'items-center justify-between gap-1 w-full'
+          collapsed ? 'items-center justify-center' : 'w-full'
         )}
         data-testid="sidebar-footer"
       >
         {collapsed ? (
-          <>
-            <UserProfileDropdown onOpenSettings={onOpenSettings} showName={false} />
-            <SettingsButton
-              onOpenSettings={onOpenSettings}
-              tooltipSide="right"
-            />
-          </>
+          <UserProfileDropdown onOpenSettings={onOpenSettings} showName={false} />
         ) : (
-          <>
-            <div className="flex-1 min-w-0">
-              <UserProfileDropdown
-                onOpenSettings={onOpenSettings}
-                showName={true}
-                className="w-full"
-              />
-            </div>
-            <div className="shrink-0">
-              <SettingsButton
-                onOpenSettings={onOpenSettings}
-                tooltipSide="top"
-              />
-            </div>
-          </>
+          <UserProfileDropdown
+            onOpenSettings={onOpenSettings}
+            showName={true}
+            className="w-full"
+          />
         )}
       </div>
     </aside>

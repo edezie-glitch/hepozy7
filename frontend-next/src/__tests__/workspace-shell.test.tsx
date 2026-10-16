@@ -83,10 +83,8 @@ describe('WorkspaceShell Component', () => {
     // Profile menu trigger
     expect(screen.getAllByLabelText(/user profile menu/i).length).toBeGreaterThanOrEqual(1);
 
-    // Settings modal trigger
-    expect(screen.getByRole('button', { name: /open settings/i })).toBeInTheDocument();
-
-    // Theme toggle is removed from sidebar footer
+    // Standalone settings and theme buttons are removed from sidebar footer
+    expect(screen.queryByRole('button', { name: /open settings/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /toggle theme/i })).not.toBeInTheDocument();
 
     // Full height welcome canvas
@@ -169,8 +167,11 @@ describe('WorkspaceShell Component', () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);
 
-    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
-    await user.click(settingsBtn);
+    const profileTrigger = screen.getAllByLabelText(/user profile menu/i)[0];
+    await user.click(profileTrigger);
+
+    const settingsMenuItem = await screen.findByRole('menuitem', { name: /settings/i });
+    await user.click(settingsMenuItem);
 
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByText(/danger zone/i)).toBeInTheDocument();
