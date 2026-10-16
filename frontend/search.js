@@ -118,22 +118,30 @@
     }
     return row;
   }
-  // Picture viewer: opens the clicked picture larger, in the middle of the screen. No blur and no dimming,
-  // the page behind stays exactly as it was. Click outside, press Esc or press x to close.
-  var viewer = null;
-  function closeViewer() {
-    if (viewer) { viewer.remove(); viewer = null; document.removeEventListener("keydown", onViewerKey); }
+  // Picture windows: every clicked picture opens in its OWN window, in the middle of the screen. Several can be
+  // open at once. Each window has its own bar on top of its picture (smaller, bigger, reset, close) that follows
+  // the picture when it is moved or enlarged. Press, hold and drag a picture to move it anywhere. The window you
+  // touch comes to the front. No blur and no dimming. Closing the Search panel does NOT close them: a picture goes away only when you close it.
+  var wins = [], zTop = 200;
+  function closeWin(w) {
+    w.root.remove();
+    wins = wins.filter(function (x) { return x !== w; });
   }
-  function onViewerKey(e) { if (e.key === "Escape") closeViewer(); }
+  function closeAllWins() { wins.slice().forEach(closeWin); }
+  function toFront(w) { zTop += 2; w.root.style.zIndex = zTop; wins = wins.filter(function (x) { return x !== w; }); wins.push(w); }
+  document.addEventListener("keydown", function (e) {  // Esc: the Search panel closes first; with the panel closed it closes the front picture
+    if (e.key === "Escape" && wins.length && !panel.classList.contains("show")) closeWin(wins[wins.length - 1]);
+  }, true);  // capture: runs before the panel's own Esc handler, so one key press closes only one thing
+
   function openViewer(r, thumb) {
-    closeViewer();
     var full = safeUrl(r.image_url) || thumb;
     var page = safeUrl(r.url) || safeUrl(r.image_url);
-    viewer = el("div", "sp-lb");
+    for (var i = 0; i < wins.length; i++) if (wins[i].key === full) { toFront(wins[i]); return; }  // already open: bring it forward
+    var root = el("div", "sp-win");
     var box = el("div", "sp-lb-box");
-    var x = el("button", "sp-lb-x"); x.type = "button"; x.textContent = "\u00d7"; x.setAttribute("aria-label", "Close");
     var img = document.createElement("img");
     img.className = "sp-lb-img"; img.alt = clip(r.title, 120); img.referrerPolicy = "no-referrer"; img.src = full;
+    img.draggable = false;
     img.addEventListener("error", function () { if (img.src !== thumb) img.src = thumb; });  // full size failed: show the small one
     var cap = el("div", "sp-lb-cap"); cap.textContent = clip(r.title, 160);
     var meta = el("div", "sp-lb-meta");
@@ -142,11 +150,65 @@
       var open = el("a", ""); open.href = page; open.target = "_blank"; open.rel = "noopener noreferrer"; open.textContent = "Open source page";
       meta.appendChild(open);
     }
-    box.appendChild(x); box.appendChild(img); box.appendChild(cap); box.appendChild(meta);
-    viewer.appendChild(box);
-    viewer.addEventListener("click", function (e) { if (!box.contains(e.target) || e.target === x) closeViewer(); });
-    document.body.appendChild(viewer);
-    document.addEventListener("keydown", onViewerKey);
+    box.appendChild(img); box.appendChild(cap); box.appendChild(meta);
+    var bar = el("div", "sp-lb-bar");
+    root.appendChild(box); root.appendChild(bar);
+
+    var w = { key: full, root: root };
+    var n = wins.length % 8;                      // each new window starts a little lower and to the right, so none hides another
+    var tx = n * 28, ty = n * 28, sc = 1;
+    function placeBar() {                         // the bar sits on top of the picture, centred, and never leaves the screen
+      var rc = box.getBoundingClientRect();
+      var bw = bar.offsetWidth || 150;
+      var left = Math.min(Math.max(rc.left + rc.width / 2 - bw / 2, 4), window.innerWidth - bw - 4);
+      var top = Math.min(Math.max(rc.top - 40, 4), window.innerHeight - 40);
+      bar.style.left = left + "px"; bar.style.top = top + "px";
+    }
+    function apply() {
+      box.style.transform = "translate(-50%,-50%) translate(" + tx + "px," + ty + "px) scale(" + sc + ")";
+      placeBar();
+    }
+    function zoom(f) { sc = Math.min(6, Math.max(0.4, sc * f)); apply(); }
+    function reset() { tx = 0; ty = 0; sc = 1; apply(); }
+    function btn(label, text, fn) {
+      var b = el("button", "sp-lb-btn"); b.type = "button"; b.textContent = text; b.setAttribute("aria-label", label); b.title = label;
+      b.addEventListener("click", function (e) { e.stopPropagation(); fn(); });
+      bar.appendChild(b); return b;
+    }
+    btn("Smaller", "\u2212", function () { zoom(1 / 1.25); });
+    btn("Bigger", "+", function () { zoom(1.25); });
+    btn("Reset size and position", "Reset", reset).classList.add("sp-lb-reset");
+    btn("Close", "\u00d7", function () { closeWin(w); });
+    bar.addEventListener("pointerdown", function () { toFront(w); });
+
+    // press, hold and drag to move; two fingers to pinch; wheel to zoom; double click to toggle 2x
+    var pts = {}, startDist = 0, startSc = 1;
+    function dist() { var k = Object.keys(pts); if (k.length < 2) return 0; var p = pts[k[0]], q = pts[k[1]]; return Math.hypot(p.x - q.x, p.y - q.y); }
+    box.addEventListener("pointerdown", function (e) {
+      toFront(w);
+      if (e.target.closest("a")) return;  // the "Open source page" link works as a link
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      try { box.setPointerCapture(e.pointerId); } catch (x) {}
+      box.classList.add("drag");
+      if (Object.keys(pts).length === 2) { startDist = dist(); startSc = sc; }
+    });
+    box.addEventListener("pointermove", function (e) {
+      var p = pts[e.pointerId]; if (!p) return;
+      var k = Object.keys(pts).length;
+      if (k === 1) { tx += e.clientX - p.x; ty += e.clientY - p.y; apply(); }
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (k === 2 && startDist) { sc = Math.min(6, Math.max(0.4, startSc * dist() / startDist)); apply(); }
+    });
+    function up(e) { delete pts[e.pointerId]; startDist = 0; if (!Object.keys(pts).length) box.classList.remove("drag"); }
+    box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+    box.addEventListener("wheel", function (e) { e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
+    box.addEventListener("dblclick", function () { if (sc === 1) { sc = 2; apply(); } else { reset(); } });
+
+    document.body.appendChild(root);
+    wins.push(w); toFront(w);
+    apply();
+    img.addEventListener("load", placeBar);       // the picture's real size is known now: put the bar back on top of it
+    window.addEventListener("resize", placeBar);
   }
   function renderImage(r) {
     var src = safeUrl(r.thumb_url) || safeUrl(r.image_url);
