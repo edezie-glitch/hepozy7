@@ -118,6 +118,36 @@
     }
     return row;
   }
+  // Picture viewer: opens the clicked picture larger, in the middle of the screen. No blur and no dimming,
+  // the page behind stays exactly as it was. Click outside, press Esc or press x to close.
+  var viewer = null;
+  function closeViewer() {
+    if (viewer) { viewer.remove(); viewer = null; document.removeEventListener("keydown", onViewerKey); }
+  }
+  function onViewerKey(e) { if (e.key === "Escape") closeViewer(); }
+  function openViewer(r, thumb) {
+    closeViewer();
+    var full = safeUrl(r.image_url) || thumb;
+    var page = safeUrl(r.url) || safeUrl(r.image_url);
+    viewer = el("div", "sp-lb");
+    var box = el("div", "sp-lb-box");
+    var x = el("button", "sp-lb-x"); x.type = "button"; x.textContent = "\u00d7"; x.setAttribute("aria-label", "Close");
+    var img = document.createElement("img");
+    img.className = "sp-lb-img"; img.alt = clip(r.title, 120); img.referrerPolicy = "no-referrer"; img.src = full;
+    img.addEventListener("error", function () { if (img.src !== thumb) img.src = thumb; });  // full size failed: show the small one
+    var cap = el("div", "sp-lb-cap"); cap.textContent = clip(r.title, 160);
+    var meta = el("div", "sp-lb-meta");
+    if (r.license) { var lic = el("span", ""); lic.textContent = clip(r.license, 60); meta.appendChild(lic); }
+    if (page) {
+      var open = el("a", ""); open.href = page; open.target = "_blank"; open.rel = "noopener noreferrer"; open.textContent = "Open source page";
+      meta.appendChild(open);
+    }
+    box.appendChild(x); box.appendChild(img); box.appendChild(cap); box.appendChild(meta);
+    viewer.appendChild(box);
+    viewer.addEventListener("click", function (e) { if (!box.contains(e.target) || e.target === x) closeViewer(); });
+    document.body.appendChild(viewer);
+    document.addEventListener("keydown", onViewerKey);
+  }
   function renderImage(r) {
     var src = safeUrl(r.thumb_url) || safeUrl(r.image_url);
     if (!src) return null;
@@ -128,6 +158,11 @@
     img.src = src; img.alt = clip(r.title, 120); img.loading = "lazy"; img.referrerPolicy = "no-referrer";
     img.addEventListener("error", function () { a.remove(); });
     a.appendChild(img);
+    a.addEventListener("click", function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;  // open in a new tab as usual
+      e.preventDefault();
+      openViewer(r, src);
+    });
     return a;
   }
   function render(results, images) {

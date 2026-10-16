@@ -31,5 +31,11 @@ a.sp-title:hover{text-decoration:underline}
 .sp-strip .sp-img{flex:0 0 auto;margin:0}
 .sp-strip .sp-img img{height:72px;width:auto;min-width:56px;min-height:0}
 .sp-grip{position:absolute;left:0;top:0;width:8px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
- 
+.sp-grip:hover{background:rgba(255,115,0,.25)}
 @media (max-width:640px){.sp-grip{display:none}}
+.sp-lb{position:fixed;inset:0;z-index:160;display:flex;align-items:center;justify-content:center;background:transparent}
+.sp-lb-box{position:relative;max-width:min(92vw,880px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.28);padding:10px;display:flex;flex-direction:column;gap:8px}
+.sp-lb-img{display:block;max-width:100%;max-height:68vh;max-height:68dvh;width:auto;height:auto;margin:0 auto;border-radius:8px;object-fit:contain;background:var(--input-bg)}
+.sp-lb-cap{font-size:13.5px;line-height:1.4;padding:0 4px}
+.sp-lb-meta{font-size:12px;line-height:1.4;opacity:.75;display:flex;gap:14px;flex-wrap:wrap;padding:0 4px 2px}
+.sp-lb-x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:20px;line-height:1;padding:0}
