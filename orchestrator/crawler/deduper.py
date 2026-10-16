@@ -38,3 +38,9 @@ def record_document(source_url: str, text: str) -> str:
         .execute()
     )
     return result.data[0]["id"]
+
+
+# ADDED
+def set_document_meta(document_id: str, title: str | None, doc_type: str) -> None:
+    """Saves the page title and the document type on the documents row."""
+    supabase.table("documents").update({"title": title, "doc_type": doc_type}).eq("id", document_id).execute()

@@ -1,30 +1,18 @@
 import os
-import sys
 import uuid
 import json
 import re
 import asyncio
+import threading
 from pathlib import Path
-
-# Ensure orchestrator directory is in sys.path for local module imports
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from dotenv import load_dotenv
-# Load .env.local and .env from project root or current directory
-_root = Path(__file__).resolve().parent.parent
-for _env_name in [".env.local", ".env"]:
-    _env_file = _root / _env_name
-    if _env_file.exists():
-        load_dotenv(_env_file)
-load_dotenv()
-
+ 
 import time
 import base64
 import hmac
 import ipaddress
 from concurrent.futures import ThreadPoolExecutor
 import xml.etree.ElementTree as ET
-from attachments import build_attachment_context, save_attachments, prepare_uploads, signed_url
+from attachments import build_attachment_context, check_attachments, save_attachments, prepare_uploads, signed_url
 from pathlib import Path
 from urllib.parse import quote as url_quote
 import requests
@@ -41,6 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from supabase import create_client
 
 from auth import router as auth_router, current_user
+from search_api import router as search_router
 from cache import get_cached_response, store_response
 from usage_logger import log_usage
 from file_generator import generate_file, GENERATED_FILES_DIR
@@ -56,6 +45,21 @@ from response import format_response, tidy_stored_reply  # CHANGED: tidy_stored_
 from retriever.search import search as retrieve_chunks
 from workflow import decide_workflow
 from site_info import SITE_INFO
+
+# ADDED: cached answers are tagged with a fingerprint of site_info.py. When you edit site_info.py the
+# fingerprint changes, so answers cached under the old rules are never served again.
+import hashlib
+_SITE_VER = hashlib.md5(str(SITE_INFO).encode("utf-8")).hexdigest()[:8]
+
+
+def _cache_type(task_type: str) -> str:
+    return f"{task_type}@{_SITE_VER}"
+
+
+def _hide_keys(text: str) -> str:
+    """ADDED: an error from Google contains the full URL including ?key=<API key>. Never log it."""
+    return re.sub(r"([?&]key=)[^&\s)\]\*]+", r"\1[hidden]", text)
+
 
 load_dotenv()
 
@@ -76,10 +80,28 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",")],
+    # CHANGED: the default was "*" (any website). Now only your own site, plus the local test address,
+    # because login.html opened at localhost calls https://hepozy.com. Override in .env with ALLOWED_ORIGINS=a,b
+    allow_origins=[o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "https://hepozy.com,http://localhost:8000,http://127.0.0.1:8000").split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ADDED: basic browser protections on every response
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    r = await call_next(request)
+    r.headers["X-Content-Type-Options"] = "nosniff"
+    r.headers["X-Frame-Options"] = "DENY"
+    r.headers["Referrer-Policy"] = "no-referrer"
+    r.headers["Content-Security-Policy"] = "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    # ADDED: answers that hold private data (chats, login) must never be stored by a browser or proxy
+    if request.url.path.startswith(("/chat", "/auth", "/admin")):
+        r.headers["Cache-Control"] = "no-store"
+    if request.url.path.startswith("/search"):  # ADDED: search answers must not be cached either
+        r.headers["Cache-Control"] = "no-store"
+    return r
 
 # CHANGED: the frontend folder is now found from where THIS file lives, not from the folder
 # the server was started in. Before, starting the server from a different folder after a
@@ -113,7 +135,7 @@ class ChatResponse(BaseModel):
 
 
 class TitleUpdate(BaseModel):
-    title: str
+    title: str = Field(max_length=200)  # ADDED: no unlimited titles
 
 
 # ADDED: messages are saved with hidden markers ([[FILES]], [[ATTACHMENTS]], [[REPLY]]) that
@@ -123,6 +145,15 @@ def _strip_markers(text: str) -> str:
     for marker in ("[[FILES]]", "[[ATTACHMENTS]]", "[[REPLY]]"):
         text = text.replace(marker, marker[2:-2])
     return text
+
+
+# ADDED: the model sometimes writes a heading wrapped in bold ("**## Title**"), which shows as
+# literal symbols. This turns it into a normal heading line.
+_BOLD_HEADING_RE = re.compile(r"^[ \t]*\*\*(#{1,4}[ \t]+.+?)\*\*[ \t]*$", re.MULTILINE)
+
+
+def _unwrap_bold_headings(text: str) -> str:
+    return _BOLD_HEADING_RE.sub(r"\1", text)
 
 
 def assert_owner(conversation_id: str, uid: str) -> None:
@@ -207,7 +238,7 @@ def search_arxiv(query: str, max_results: int = 1) -> list[dict]:
     """
     try:
         response = requests.get(
-            "http://export.arxiv.org/api/query",
+            "https://export.arxiv.org/api/query",
             params={"search_query": f"all:{query}", "start": 0, "max_results": max_results},
             timeout=15,
         )
@@ -487,27 +518,11 @@ def build_augmented_prompt(message: str, chunks: list[dict]) -> str:
         return message
     context = "\n\n".join(c["content"] for c in relevant)
     return (
-        f"Use the following context if relevant to answer the question.\n\n"
+        f"Use the following context if relevant to answer the question. If the context states a fact, "
+        f"trust it over your own memory, and never claim that something did not happen unless the context says so.\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {message}"
     )
-
-
-def build_search_text(message: str, history: list[dict]) -> str:
-    """
-    ADDED: what the knowledge search looks for. A short follow-up ("why?", "explain more",
-    "make it shorter") means nothing on its own, so the user's previous question is added to it,
-    which connects the search to what the conversation is really about. Longer messages are
-    searched exactly as written.
-    """
-    if history and len(message.split()) <= 6:
-        for turn in reversed(history):
-            if turn.get("role") == "user":
-                previous = (turn.get("content") or "").split("\n\n[[")[0].strip()
-                if previous:
-                    return f"{previous[:300]} {message}"
-                break
-    return message
 
 
 def select_prompt_guard_model(user_action: str | None) -> str:
@@ -809,10 +824,12 @@ def chat_history(conversation_id: str, uid: str = Depends(current_user)):
         for m in result.data:
             content = m["content"]
             files = []
-            if "\n\n[[FILES]]" in content:
+            if m["role"] == "user" and "\n\n[[FILES]]" in content:  # CHANGED: only the server's own marker on user rows is trusted
                 content, files_json = content.rsplit("\n\n[[FILES]]", 1)
                 try:
                     for f in json.loads(files_json):
+                        if not str(f.get("path", "")).startswith(f"{uid}/"):  # ADDED: only this user's own files
+                            continue
                         url = signed_url(_supabase, f["path"])
                         if url:
                             files.append({"name": f["name"], "type": f["type"], "url": url})
@@ -826,7 +843,7 @@ def chat_history(conversation_id: str, uid: str = Depends(current_user)):
             # removed, a table cut off in the middle repaired), so old conversations look as good
             # as new ones. The saved data is not touched.
             if m["role"] == "assistant":
-                base = tidy_stored_reply(base)
+                base = _unwrap_bold_headings(tidy_stored_reply(base))
             m["content"] = base
             m["reply_to"] = quote
             m["attachments"] = files
@@ -981,17 +998,46 @@ def stop_chat(body: StopRequest, uid: str = Depends(current_user)):
                 .execute()
             )
             if rows.data:
-                _supabase.table("chat_messages").update({"content": body.shown_text}).eq("id", rows.data[0]["id"]).execute()
+                _supabase.table("chat_messages").update({"content": _strip_markers(body.shown_text)[:20000]}).eq("id", rows.data[0]["id"]).execute()
         except Exception as e:
             print(f"[chat_stop] could not trim the saved answer: {e}")
     return {"status": "stopped"}
 
 
+# ADDED: the 50-message limit is only counted after a message is saved, so many requests sent at
+# the same moment could all pass it. Each user may have at most 2 answers being made at once.
+_inflight: dict[str, int] = {}
+_inflight_lock = threading.Lock()
+
+
+def _one_at_a_time(uid: str = Depends(current_user)):
+    with _inflight_lock:
+        n = _inflight.get(uid, 0)
+        if n >= 2:
+            raise HTTPException(status_code=429, detail="Please wait for the current answer to finish.")
+        _inflight[uid] = n + 1
+    try:
+        yield uid
+    finally:
+        with _inflight_lock:
+            left = _inflight.get(uid, 1) - 1
+            if left <= 0:
+                _inflight.pop(uid, None)
+            else:
+                _inflight[uid] = left
+
+
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, uid: str = Depends(current_user)):
+def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, uid: str = Depends(_one_at_a_time)):
     if not req.message or not req.message.strip():
         raise HTTPException(status_code=400, detail="message cannot be empty")
     req.message = _strip_markers(req.message)
+    for _a in req.attachments or []:  # ADDED: the 5 MB limit was only checked in the browser
+        if not isinstance(_a.get("data"), str) or len(_a["data"]) > 7_000_000:
+            raise HTTPException(status_code=413, detail="Attachment too large (5 MB maximum)")
+    bad_file = check_attachments(req.attachments) if req.attachments else None
+    if bad_file:
+        raise HTTPException(status_code=415, detail=bad_file)
 
     t0 = time.perf_counter()  # ADDED: for the [timing] line in the API window
     user_id = uid  # from the verified token, never from the request body
@@ -1086,19 +1132,18 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     skip_cache = bool(file_format or attachment_context or safety_flag or reply_quote or history)
     # ADDED (speed): the clarity check only runs on short messages; longer ones are almost always clear
     need_clarity = (not skip_cache) and (not history) and len(req.message.split()) <= 7  # follow-ups in an ongoing chat are never interrupted
-    search_text = build_search_text(req.message, history)  # CHANGED: short follow-ups are searched together with the question before them
-    need_search = len(search_text.split()) >= 3  # "hi" and "thanks" do not need a knowledge search
+    need_search = len(req.message.split()) >= 3  # "hi" and "thanks" do not need a knowledge search
 
     def _safe_cache():
         try:
-            return get_cached_response(req.message, task_type)
+            return get_cached_response(req.message, _cache_type(task_type))
         except Exception as e:
             print(f"[chat] cache lookup failed, continuing without it: {e}")
             return None
 
     def _safe_search():
         try:
-            return retrieve_chunks(search_text, match_count=3)
+            return retrieve_chunks(req.message, match_count=3)
         except Exception as e:
             print(f"[chat] retrieval failed, continuing without context: {e}")
             return []
@@ -1145,7 +1190,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     # words ("summarize this") mean something different for every file.
     cached = cached_early   # looked up earlier, in parallel with the safety checks
     if cached is not None:
-        cached_reply = cached["reply"]
+        cached_reply = _unwrap_bold_headings(_strip_markers(cached["reply"]))
         if not wants_structured_output(req.message):
             cached_reply = strip_markdown_symbols(cached_reply)
 
@@ -1193,6 +1238,20 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
             paper_context = fetched_text if fetched_text else top["summary"]
 
             chunks = [{"content": f"Title: {top['title']}\n\n{paper_context}", "similarity": 1.0}]
+
+    # ADDED: nothing relevant in the index and not a paper question -> the model would answer from memory
+    # alone and can state wrong facts with confidence (e.g. "no trophies"). Ground it on live Wikipedia text.
+    relevant_chunks = [c for c in chunks if c.get("similarity", 0) >= SIMILARITY_THRESHOLD]
+    if not relevant_chunks and need_search and not attachment_context:
+        try:
+            from discovery import wiki_context
+            _live = wiki_context(req.message)
+        except Exception as _e:
+            print(f"[chat] live context failed: {_e}")
+            _live = ""
+        if _live:
+            chunks = [{"content": _live, "similarity": 1.0}]
+            print(f"[chat] grounded on live Wikipedia text ({len(_live)} chars)")
 
     augmented_prompt = build_augmented_prompt(req.message, chunks)
 
@@ -1254,6 +1313,12 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
             "numbered lists, or markdown symbols like * or #, unless truly necessary "
             "to answer clearly.)"
         )
+    else:
+        augmented_prompt += (
+            "\n\n(Format: a section heading is a line that starts with '## ' and has nothing else "
+            "on it - never put ** around a heading. Tables use pipe syntax with a |---| row under "
+            "the header. Use short bullets only where they help.)"
+        )
 
     # ADDED (moved out of the elif above): your site info is now added to
     # every non-file reply. Before, it sat inside the elif, so it only ran
@@ -1277,7 +1342,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
                 f"ask them to confirm their country or city.)\n\n"
             )
         augmented_prompt = (
-            f"{SITE_INFO}\n{location_hint}"
+            f"{location_hint}"  # CHANGED: SITE_INFO now lives in the system prompt (see the adapters)
             f"=== THE USER'S MESSAGE: read it fully and answer it ===\n"
             f"{augmented_prompt}\n"
             f"=== END OF THE USER'S MESSAGE ==="
@@ -1308,8 +1373,8 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         # from a failed Gemini call can contain the full request URL,
         # which includes the API key (?key=...). Never put {e} directly
         # into a client-facing detail= string. Log server-side only.
-        print(f"[chat] model call failed: {e}")
-        raise HTTPException(status_code=502, detail="Model call failed, please try again")
+        print(f"[chat] model call failed: {_hide_keys(str(e))}")
+        raise HTTPException(status_code=502, detail="Connection lost. Please try again in a moment.")
 
     t_model = time.perf_counter()
     if req.request_id and req.request_id in _cancelled:  # ADDED: stopped while the model was working
@@ -1317,6 +1382,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         return ChatResponse(reply="", conversation_id=conversation_id)
 
     reply = clean_reply(result["text"], req.message)  # ADDED: no HTML tags or decorative symbols
+    reply = _unwrap_bold_headings(_strip_markers(reply))  # ADDED: model output may never carry the hidden markers
 
     if not wants_structured_output(req.message):
         reply = strip_markdown_symbols(reply)
@@ -1327,12 +1393,6 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     t_safe = time.perf_counter()
     formatted = format_response(reply, plan["output_type"])
     formatted = re.sub(r"\[\[IMAGE\s+\d+\]\]", "", formatted)  # ADDED: picture markers are not shown in the chat
-
-    # ADDED: if the model ran out of room, say so plainly instead of leaving the answer ending for
-    # no reason, and tell the user how to get the rest. The answer is also never saved in the cache.
-    was_cut = bool(result.get("truncated"))
-    if was_cut:
-        formatted = formatted.rstrip() + '\n\nThis answer reached the length limit. Type "continue" and I will carry on from where it stopped.'
 
     download_url = None
     file_name = None
@@ -1349,9 +1409,9 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     # raised a 400. Future cache hits on this exact text skip re-checking it.
     # ADDED: answers about an attached file are never cached.
     # CHANGED: the cleaned answer is what gets cached, so a cut-off table is never served again.
-    if not (attachment_context or safety_flag or reply_quote or history or was_cut):
+    if not (attachment_context or safety_flag or reply_quote or history):
         background_tasks.add_task(
-            store_response, req.message, task_type, tidy_stored_reply(reply),
+            store_response, req.message, _cache_type(task_type), tidy_stored_reply(reply),
             result["input_tokens"], result["output_tokens"], True,
         )
 
@@ -1397,6 +1457,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
 
 
 app.include_router(auth_router)
+app.include_router(search_router)
 
 
 class CrawlRequest(BaseModel):
@@ -1430,6 +1491,7 @@ def root():
 # Only real page visits are redirected. The chat/auth/admin/files routes, anything with a
 # file extension, and requests made by the page's own code (fetch) keep the normal answer.
 _API_PREFIXES = ("/chat", "/auth", "/admin", "/files", "/health", "/docs", "/redoc", "/openapi.json")
+_API_PREFIXES = _API_PREFIXES + ("/search",)  # ADDED: /search is an API path, never redirect it to the login page
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -1453,7 +1515,7 @@ async def not_found_goes_to_app(request: Request, exc: StarletteHTTPException):
 _SIGNUP_HINTS = {
     "email": "Enter a valid email address",
     "username": "Username must be 3-20 letters, numbers or underscores",
-    "password": "Password must be 8-72 characters",
+    "password": "Password must be 20-72 characters",
 }
 
 

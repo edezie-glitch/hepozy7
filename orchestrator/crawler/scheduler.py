@@ -7,8 +7,10 @@ from supabase import create_client
 
 from crawler.chunker import chunk_text
 from crawler.deduper import is_duplicate, record_document
+from crawler.deduper import set_document_meta  # ADDED
 from crawler.fetcher import fetch_many
 from crawler.parser import parse_html
+from crawler.parser import parse_title  # ADDED
 from crawler.storage_client import archive_raw
 
 load_dotenv()
@@ -75,6 +77,15 @@ async def _process_one(task: dict, html: str | None) -> None:
         return
 
     document_id = record_document(url, text)
+    # ADDED: title and type. The type comes from the queue message (set by whoever queued the URL),
+    # never from the page content; anything unknown is stored as "web".
+    doc_type = task["message"].get("type")
+    if doc_type not in ("paper", "web"):
+        doc_type = "web"
+    try:
+        set_document_meta(document_id, parse_title(html), doc_type)
+    except Exception as e:
+        print(f"[scheduler] could not save title/type for {url}: {e}")
     archive_raw(document_id, html)
 
     for chunk in chunk_text(text):

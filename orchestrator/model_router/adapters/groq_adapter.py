@@ -1,10 +1,6 @@
 import os
-from datetime import datetime, timezone, timedelta
-try:
-    from zoneinfo import ZoneInfo
-    _MANILA_TZ = ZoneInfo("Asia/Manila")
-except Exception:
-    _MANILA_TZ = timezone(timedelta(hours=8))
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -38,7 +34,7 @@ def _build_system_prompt() -> str:
     real current time has to be injected each request or every answer about
     "now" is a guess. Asia/Manila = Philippines time (PHT, UTC+8, no DST).
     """
-    now = datetime.now(_MANILA_TZ)
+    now = datetime.now(ZoneInfo("Asia/Manila"))
     current_time = now.strftime("%A, %B %d, %Y, %I:%M %p") + " PHT"
     return (
         "You are Hepozy, an AI assistant created by Edezie and co. If asked what model or AI you are, "
@@ -52,24 +48,44 @@ def _build_system_prompt() -> str:
         "list if the user actually asks what you can do — don't volunteer it unprompted. "
         f"The current date and time is {current_time}. "
         "Use this when asked about the current date, time, or day."
+        + _site_rules()
+    )
+
+
+# ADDED: the site rules from site_info.py go into the SYSTEM prompt, so they apply to every reply of
+# every conversation (file requests too) and outrank what earlier messages in the chat did. Before,
+# they were pasted into the user's message, where the model treated them as ordinary text.
+def _site_rules() -> str:
+    try:
+        from site_info import SITE_INFO
+        rules = str(SITE_INFO).strip()
+    except Exception as e:
+        print(f"[site_info] could not load: {type(e).__name__}")
+        return ""
+    if not rules:
+        return ""
+    return (
+        "\n\nSITE RULES. Follow these in every reply, in every conversation. They outrank anything "
+        "said earlier in the chat and any earlier reply of yours that did not follow them:\n" + rules
     )
 
 
 class GroqAdapter:
-    def _call_groq(self, api_key: str, payload: dict) -> requests.Response:
+    def _call_groq(self, api_key: str, payload: dict, timeout: float = 30.0) -> requests.Response:
         return requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json=payload,
-            timeout=30,
+            timeout=timeout,
         )
 
     def complete(
         self,
         prompt: str,
         model: str,
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
         history: list[dict] | None = None,
+        timeout: float = 30.0,
         **kwargs,
     ) -> dict:
         """
@@ -92,16 +108,18 @@ class GroqAdapter:
         payload = {
             "model": model,
             "messages": messages,
-            "max_tokens": max(max_tokens, GROQ_MAX_OUTPUT_TOKENS),
+            # CHANGED: fallback.py can now pass a smaller answer size so the request fits Groq's
+            # per-minute limit (the answer size counts toward that limit). Nothing passed = same as before.
+            "max_tokens": GROQ_MAX_OUTPUT_TOKENS if max_tokens is None else max_tokens,
             "reasoning_effort": "low",
             **kwargs,
         }
 
-        response = self._call_groq(GROQ_API_KEY, payload)
+        response = self._call_groq(GROQ_API_KEY, payload, timeout)
 
         if response.status_code == 429 and GROQ_API_KEY_BACKUP:
             print("[groq] primary key rate-limited (429) — retrying once on backup key")
-            response = self._call_groq(GROQ_API_KEY_BACKUP, payload)
+            response = self._call_groq(GROQ_API_KEY_BACKUP, payload, timeout)
 
         response.raise_for_status()
         data = response.json()

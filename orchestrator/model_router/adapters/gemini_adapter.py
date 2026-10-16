@@ -1,10 +1,6 @@
 import os
-from datetime import datetime, timezone, timedelta
-try:
-    from zoneinfo import ZoneInfo
-    _MANILA_TZ = ZoneInfo("Asia/Manila")
-except Exception:
-    _MANILA_TZ = timezone(timedelta(hours=8))
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -21,7 +17,7 @@ GEMINI_MAX_OUTPUT_TOKENS = 8192
 
 
 def _build_system_prompt() -> str:
-    now = datetime.now(_MANILA_TZ)
+    now = datetime.now(ZoneInfo("Asia/Manila"))
     current_time = now.strftime("%A, %B %d, %Y, %I:%M %p") + " PHT"
     return (
         "You are Hepozy, an AI assistant created by Edezie and co. If asked what model or AI you are, "
@@ -35,6 +31,25 @@ def _build_system_prompt() -> str:
         "list if the user actually asks what you can do — don't volunteer it unprompted. "
         f"The current date and time is {current_time}. "
         "Use this when asked about the current date, time, or day."
+        + _site_rules()
+    )
+
+
+# ADDED: the site rules from site_info.py go into the SYSTEM prompt, so they apply to every reply of
+# every conversation (file requests too) and outrank what earlier messages in the chat did. Before,
+# they were pasted into the user's message, where the model treated them as ordinary text.
+def _site_rules() -> str:
+    try:
+        from site_info import SITE_INFO
+        rules = str(SITE_INFO).strip()
+    except Exception as e:
+        print(f"[site_info] could not load: {type(e).__name__}")
+        return ""
+    if not rules:
+        return ""
+    return (
+        "\n\nSITE RULES. Follow these in every reply, in every conversation. They outrank anything "
+        "said earlier in the chat and any earlier reply of yours that did not follow them:\n" + rules
     )
 
 
@@ -45,19 +60,20 @@ class GeminiAdapter:
         model: str = GEMINI_CHAT_MODEL,
         max_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
         history: list[dict] | None = None,
+        timeout: float = 60.0,
         **kwargs,
     ) -> dict:
         """
         Returns {"text": str, "input_tokens": int, "output_tokens": int, "truncated": bool}.
         truncated is True when the model stopped because it ran out of room (not because it was done).
         history: prior turns as [{"role": "user"|"assistant", "content": str}, ...].
+        timeout: seconds to wait for Google. fallback.py lowers it when time is running out.
         Gemini's API uses "user"/"model" as role names (not "assistant"), so
         each history turn is converted before being sent.
         """
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent?key={GEMINI_API_KEY}"
-        )
+        # CHANGED: the API key now travels in a header, not in the web address. When the key was
+        # in the address, every error message and log line printed it. Now nothing prints it.
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
         contents = []
         if history:
@@ -68,6 +84,7 @@ class GeminiAdapter:
 
         response = requests.post(
             url,
+            headers={"x-goog-api-key": GEMINI_API_KEY},
             json={
                 "systemInstruction": {"parts": [{"text": _build_system_prompt()}]},
                 "contents": contents,
@@ -80,7 +97,7 @@ class GeminiAdapter:
             # so fallback.py's 503 retry never applied). Retrying a timeout
             # would just double the wait for likely the same outcome, so the
             # real fix is a more realistic budget, not a retry.
-            timeout=60,
+            timeout=timeout,
         )
         response.raise_for_status()
         data = response.json()

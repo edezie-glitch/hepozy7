@@ -11,14 +11,13 @@ def route(task_type: str, prompt: str, user_id: str, history: list[dict] | None 
     model sees the whole conversation, not just the current message.
     Returns the reply text.
 
-    UNCHANGED from the original — this file was never the bug. It correctly
-    does a generic .get() lookup; it just had nowhere real to land for
-    tool_use_short/tool_use_long until config.py was fixed.
+    CHANGED: user_id is now passed to complete_with_fallback so Groq's per-minute
+    budget can be shared fairly between users (see rate_limiter.py).
     """
     provider, model = TASK_MODEL_MAP.get(task_type, TASK_MODEL_MAP["simple"])
 
     with track_call(user_id, provider, model) as tracker:
-        result = complete_with_fallback(prompt, provider=provider, model=model, history=history)
+        result = complete_with_fallback(prompt, provider=provider, model=model, history=history, user_id=user_id)
         tracker["input_tokens"] = result["input_tokens"]
         tracker["output_tokens"] = result["output_tokens"]
 
