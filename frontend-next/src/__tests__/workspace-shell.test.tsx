@@ -9,6 +9,8 @@ import * as chatApi from '@/lib/api/chat';
 import * as clientModule from '@/lib/supabase/client';
 import { ThemeProvider } from '@/components/theme-provider';
 
+import { useChatStore } from '@/stores/use-chat-store';
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -33,6 +35,22 @@ describe('WorkspaceShell Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.localStorage.clear();
+    useChatStore.getState().clearAllGenerations();
+    useChatStore.setState({
+      inputPrompt: '',
+      replyingTo: null,
+      editingMessageId: null,
+      isGenerating: false,
+      activeRequestId: null,
+      abortController: null,
+      stagedAttachments: [],
+      attachmentError: null,
+      clarificationPrompt: null,
+      quotaExceeded: null,
+      generationStates: {},
+      conversationMessages: {},
+      animatedAssistantMessageIds: {},
+    });
 
     const mockSupabase = {
       auth: {
@@ -318,6 +336,86 @@ describe('WorkspaceShell Component', () => {
     expect(mobileUserProfile).toHaveClass('w-full');
     expect(mobileUserProfile).toHaveClass('px-2.5');
     expect(mobileUserProfile).toHaveClass('py-2');
+  });
+
+  describe('Ticket 19 (#28): Conversation-Scoped Generation State & Independent Chat Input Switching', () => {
+    it('switching to another conversation in sidebar while an inquiry is generating preserves interactive chat input in target conversation', async () => {
+      const user = userEvent.setup();
+      let resolveFirst!: (value: chatApi.ChatResponse) => void;
+      const firstPromise = new Promise<chatApi.ChatResponse>((resolve) => {
+        resolveFirst = resolve;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(firstPromise);
+
+      renderWithProviders(<WorkspaceShell />);
+
+      // Select First Workspace Chat (id: 'c-1')
+      await user.click(screen.getByText('First Workspace Chat'));
+      const textarea = screen.getByPlaceholderText(/ask hepozy assistant/i);
+      expect(textarea).toBeInTheDocument();
+
+      // Submit turn in c-1
+      await user.type(textarea, 'Query in first conversation{enter}');
+
+      // In c-1, input is generating: Stop button is visible and textarea is disabled
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+      expect(textarea).toBeDisabled();
+
+      // Switch to Second Document Query (id: 'c-2') from sidebar
+      await user.click(screen.getByText('Second Document Query'));
+
+      // In c-2, input is enabled and interactive, with Send button (NOT Stop button)
+      const secondTextarea = await screen.findByPlaceholderText(/ask hepozy assistant/i);
+      expect(secondTextarea).toBeEnabled();
+      expect(screen.queryByRole('button', { name: /stop generation/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+
+      // Switch back to First Workspace Chat (c-1)
+      await user.click(screen.getByText('First Workspace Chat'));
+
+      // In c-1, generating state is restored with Stop button and disabled textarea
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeDisabled();
+
+      // Resolve c-1 generation
+      resolveFirst({
+        reply: 'First reply completed',
+        conversation_id: 'c-1',
+        assistant_message_id: 'a-c1',
+        needs_clarification: false,
+        quota_exceeded: false,
+      });
+    });
+
+    it('clicking New Chat while an inquiry is generating in active conversation transitions cleanly to welcome canvas', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithProviders(<WorkspaceShell />);
+
+      // Select First Workspace Chat (c-1)
+      await user.click(screen.getByText('First Workspace Chat'));
+      const textarea = screen.getByPlaceholderText(/ask hepozy assistant/i);
+
+      // Submit in c-1 to start generation
+      await user.type(textarea, 'Background prompt{enter}');
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+
+      // Click New Chat
+      await user.click(screen.getByRole('button', { name: /new chat/i }));
+
+      // Cleanly transitions to welcome canvas
+      expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+
+      // Click Start Conversation to launch new optimistic chat
+      await user.click(screen.getByRole('button', { name: /start conversation/i }));
+
+      // New conversation has enabled input and Send button
+      const newTextarea = await screen.findByPlaceholderText(/ask hepozy assistant/i);
+      expect(newTextarea).toBeEnabled();
+      expect(screen.queryByRole('button', { name: /stop generation/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+    });
   });
 });
 

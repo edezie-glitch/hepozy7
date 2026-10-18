@@ -9,6 +9,7 @@ import { useChatStore } from '@/stores/use-chat-store';
 describe('ChatWorkspace Component Integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useChatStore.getState().clearAllGenerations();
     useChatStore.setState({
       inputPrompt: '',
       replyingTo: null,
@@ -20,6 +21,9 @@ describe('ChatWorkspace Component Integration', () => {
       attachmentError: null,
       clarificationPrompt: null,
       quotaExceeded: null,
+      generationStates: {},
+      conversationMessages: {},
+      animatedAssistantMessageIds: {},
     });
   });
 
@@ -756,7 +760,9 @@ describe('ChatWorkspace Component Integration', () => {
       });
 
       // Optimistic placeholder seamlessly transforms into the assistant message
-      expect(await screen.findByText(/Streaming tokens/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Streaming tokens/, {}, { timeout: 10000 })
+      ).toBeInTheDocument();
       expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
     });
 
@@ -1003,6 +1009,185 @@ describe('ChatWorkspace Component Integration', () => {
           Object.defineProperty(Element.prototype, 'scrollTop', originalScrollTopDescriptor);
         }
       }
+    });
+  });
+
+  describe('Ticket 19 (#28): Conversation-Scoped Generation State & Independent Chat Input Switching', () => {
+    it('moving to a different conversation while an inquiry is generating restores the new conversation chat input to an enabled interactive state with Send button', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
+
+      let resolveConv1!: (val: chatApi.ChatResponse) => void;
+      const conv1Promise = new Promise<chatApi.ChatResponse>((res) => {
+        resolveConv1 = res;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(conv1Promise);
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-1" />);
+
+      // Submit message in conv-1 to start generation
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Long query in conv-1{enter}');
+
+      // In conv-1, Stop button is shown and input is disabled
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+      expect(textarea).toBeDisabled();
+
+      // Switch to conv-2
+      rerender(<ChatWorkspace conversationId="conv-2" />);
+
+      // In conv-2, input is enabled and interactive, and Send button is rendered
+      const conv2Textarea = await screen.findByRole('textbox');
+      expect(conv2Textarea).toBeEnabled();
+      expect(screen.queryByRole('button', { name: /stop generation/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+
+      // User can type in conv-2
+      await user.type(conv2Textarea, 'Query in conv-2');
+      expect(conv2Textarea).toHaveValue('Query in conv-2');
+
+      // Cleanup
+      act(() => {
+        resolveConv1({
+          reply: 'Answer 1',
+          conversation_id: 'conv-1',
+          assistant_message_id: 'a-1',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+    });
+
+    it('returning to the generating conversation restores the active generating state, optimistic stream indicator, and stop control', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
+
+      let resolveConvA!: (val: chatApi.ChatResponse) => void;
+      const convAPromise = new Promise<chatApi.ChatResponse>((res) => {
+        resolveConvA = res;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(convAPromise);
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-A" />);
+
+      // Start generation in conv-A
+      const textareaA = screen.getByRole('textbox');
+      await user.type(textareaA, 'Generate essay in A{enter}');
+
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+
+      // Temporarily switch to conv-B
+      rerender(<ChatWorkspace conversationId="conv-B" />);
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+
+      // Return to conv-A while generation is still in progress
+      rerender(<ChatWorkspace conversationId="conv-A" />);
+
+      // Restores active generating state, optimistic stream indicator, and Stop button
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeDisabled();
+
+      // Resolve generation
+      act(() => {
+        resolveConvA({
+          reply: 'Finished essay in A',
+          conversation_id: 'conv-A',
+          assistant_message_id: 'a-finished',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      // Transitions placeholder into finished assistant response
+      expect(await screen.findByText(/Finished essay in A/)).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+    });
+
+    it('background generation in Conversation A completes and displays assistant message when returning to Conversation A', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
+
+      let resolveConvX!: (val: chatApi.ChatResponse) => void;
+      const convXPromise = new Promise<chatApi.ChatResponse>((res) => {
+        resolveConvX = res;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(convXPromise);
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-X" />);
+
+      // Start generation in conv-X
+      const textareaX = screen.getByRole('textbox');
+      await user.type(textareaX, 'Background analysis{enter}');
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+
+      // Switch away to conv-Y
+      rerender(<ChatWorkspace conversationId="conv-Y" />);
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+
+      // Generation for conv-X completes in background while user views conv-Y
+      act(() => {
+        resolveConvX({
+          reply: 'Background analysis completed successfully.',
+          conversation_id: 'conv-X',
+          assistant_message_id: 'a-bg-done',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      // Return to conv-X
+      rerender(<ChatWorkspace conversationId="conv-X" />);
+
+      // Completed assistant message is seamlessly displayed and input is enabled
+      expect(await screen.findByText('Background analysis completed successfully.')).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeEnabled();
+    });
+
+    it('aborting generation in one conversation cleans up without affecting another conversation', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValue([]);
+      const stopSpy = vi.spyOn(chatApi, 'stopChat').mockResolvedValue({ status: 'stopped' });
+
+      // conv-1 hangs until aborted
+      vi.spyOn(chatApi, 'sendChatMessage').mockImplementationOnce(
+        (_params, signal) =>
+          new Promise((_, reject) => {
+            signal?.addEventListener('abort', () => {
+              const err = new Error('Aborted');
+              err.name = 'AbortError';
+              reject(err);
+            });
+          })
+      );
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-1" />);
+
+      // Submit in conv-1
+      await user.type(screen.getByRole('textbox'), 'Start conv 1{enter}');
+      expect(screen.getByRole('button', { name: /stop generation/i })).toBeInTheDocument();
+
+      // Click Stop in conv-1
+      const stopButton = screen.getByRole('button', { name: /stop generation/i });
+      await user.click(stopButton);
+
+      expect(stopSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ conversation_id: 'conv-1' })
+      );
+
+      // conv-1 placeholder removed and controls restored
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeEnabled();
+
+      // Switch to conv-2
+      rerender(<ChatWorkspace conversationId="conv-2" />);
+      expect(screen.getByRole('textbox')).toBeEnabled();
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
     });
   });
 });

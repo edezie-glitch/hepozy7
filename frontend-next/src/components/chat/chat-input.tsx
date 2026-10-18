@@ -20,6 +20,8 @@ export interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  conversationId?: string | null;
+  isGenerating?: boolean;
 }
 
 export function ChatInput({
@@ -28,6 +30,8 @@ export function ChatInput({
   disabled = false,
   placeholder = 'Ask Hepozy Assistant anything...',
   className = '',
+  conversationId,
+  isGenerating: propIsGenerating,
 }: ChatInputProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -37,7 +41,12 @@ export function ChatInput({
   const setInputPrompt = useChatStore((state) => state.setInputPrompt);
   const replyingTo = useChatStore((state) => state.replyingTo);
   const clearReplyingTo = useChatStore((state) => state.clearReplyingTo);
-  const isGenerating = useChatStore((state) => state.isGenerating);
+  const storeIsGenerating = useChatStore((state) =>
+    conversationId !== undefined
+      ? state.isConversationGenerating(conversationId)
+      : state.isGenerating
+  );
+  const isGenerating = propIsGenerating !== undefined ? propIsGenerating : storeIsGenerating;
 
   const stagedAttachments = useChatStore((state) => state.stagedAttachments);
   const stageFiles = useChatStore((state) => state.stageFiles);

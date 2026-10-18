@@ -37,10 +37,29 @@ export function ChatWorkspace({
   onConversationCreated,
   className = '',
 }: ChatWorkspaceProps) {
-  const [messages, setMessages] = React.useState<ChatMessageItem[]>([]);
+  const conversationIdRef = React.useRef<string | null>(conversationId);
+
+  const isGenerating = useChatStore((state) =>
+    conversationId ? state.isConversationGenerating(conversationId) : state.isConversationGenerating(null)
+  );
+
+  const setConversationMessages = useChatStore((state) => state.setConversationMessages);
+  const startConversationGeneration = useChatStore((state) => state.startConversationGeneration);
+  const finishConversationGeneration = useChatStore((state) => state.finishConversationGeneration);
+  const stopConversationGeneration = useChatStore((state) => state.stopConversationGeneration);
+  const setAnimatedAssistantMessageId = useChatStore((state) => state.setAnimatedAssistantMessageId);
+  const migrateConversationState = useChatStore((state) => state.migrateConversationState);
+
+  const [messages, setMessages] = React.useState<ChatMessageItem[]>(() =>
+    useChatStore.getState().isConversationGenerating(conversationId)
+      ? useChatStore.getState().getConversationMessages(conversationId) || []
+      : []
+  );
   const [loadingHistory, setLoadingHistory] = React.useState(false);
   const [latestAnimatedAssistantMessageId, setLatestAnimatedAssistantMessageId] =
-    React.useState<string | null>(null);
+    React.useState<string | null>(() =>
+      useChatStore.getState().getAnimatedAssistantMessageId(conversationId)
+    );
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
@@ -54,6 +73,15 @@ export function ChatWorkspace({
 
   if (conversationId !== prevConversationId) {
     setPrevConversationId(conversationId);
+    if (useChatStore.getState().isConversationGenerating(conversationId)) {
+      setMessages(useChatStore.getState().getConversationMessages(conversationId) || []);
+    } else {
+      setMessages([]);
+    }
+  }
+
+  useIsomorphicLayoutEffect(() => {
+    conversationIdRef.current = conversationId;
     if (upgradedConversationIdRef.current === conversationId) {
       // In-place upgrade of active conversation — preserve smooth scrolling
       loadedConversationIdRef.current = conversationId;
@@ -64,15 +92,10 @@ export function ChatWorkspace({
         getPersistableConversationId(conversationId)
       );
     }
-  }
+  }, [conversationId]);
 
   const replyingTo = useChatStore((state) => state.replyingTo);
   const resetInput = useChatStore((state) => state.resetInput);
-  const isGenerating = useChatStore((state) => state.isGenerating);
-  const setIsGenerating = useChatStore((state) => state.setIsGenerating);
-  const setActiveRequestId = useChatStore((state) => state.setActiveRequestId);
-  const setAbortController = useChatStore((state) => state.setAbortController);
-  const stopGeneration = useChatStore((state) => state.stopGeneration);
 
   const clarificationPrompt = useChatStore((state) => state.clarificationPrompt);
   const setClarificationPrompt = useChatStore((state) => state.setClarificationPrompt);
@@ -114,10 +137,30 @@ export function ChatWorkspace({
       pendingInstantScrollRef.current = false;
       queueMicrotask(() => {
         if (active) {
-          setMessages([]);
+          const stored = useChatStore.getState().getConversationMessages(conversationId) || [];
+          setMessages(stored);
           setLoadingHistory(false);
           clearClarificationPrompt();
           clearQuotaExceeded();
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }
+
+    // If conversation is actively generating in background, restore its in-flight messages immediately
+    if (useChatStore.getState().isConversationGenerating(conversationId)) {
+      loadedConversationIdRef.current = conversationId;
+      pendingInstantScrollRef.current = false;
+      queueMicrotask(() => {
+        if (active) {
+          const stored = useChatStore.getState().getConversationMessages(conversationId) || [];
+          setMessages(stored);
+          setLatestAnimatedAssistantMessageId(
+            useChatStore.getState().getAnimatedAssistantMessageId(conversationId)
+          );
+          setLoadingHistory(false);
         }
       });
       return () => {
@@ -144,8 +187,13 @@ export function ChatWorkspace({
     getChatHistory(conversationId)
       .then((history) => {
         if (active) {
+          // If the conversation began generating while history was fetching, do not overwrite in-flight messages
+          if (useChatStore.getState().isConversationGenerating(conversationId)) {
+            return;
+          }
           loadedConversationIdRef.current = conversationId;
           setMessages(history);
+          setConversationMessages(conversationId, history);
           setLatestAnimatedAssistantMessageId(null);
           clearClarificationPrompt();
           clearQuotaExceeded();
@@ -164,7 +212,7 @@ export function ChatWorkspace({
     return () => {
       active = false;
     };
-  }, [conversationId, clearClarificationPrompt, clearQuotaExceeded]);
+  }, [conversationId, clearClarificationPrompt, clearQuotaExceeded, setConversationMessages]);
 
   // Scroll to bottom on new messages or during generation, differentiating instant anchor vs smooth scroll
   useIsomorphicLayoutEffect(() => {
@@ -234,16 +282,20 @@ export function ChatWorkspace({
       is_pending: true,
     };
 
-    if (options?.appendUserMessage !== false) {
-      setMessages((prev) => [...prev, userMsg, optimisticAssistantMsg]);
-    } else {
-      setMessages((prev) => [...prev, optimisticAssistantMsg]);
+    const appendMessages = (prev: ChatMessageItem[]) =>
+      options?.appendUserMessage !== false
+        ? [...prev, userMsg, optimisticAssistantMsg]
+        : [...prev, optimisticAssistantMsg];
+
+    setConversationMessages(targetConvId, appendMessages);
+    if (conversationIdRef.current === targetConvId) {
+      setMessages((prev) => appendMessages(prev));
     }
     resetInput();
     clearClarificationPrompt();
 
     const settleOptimisticMessage = (updates: Partial<ChatMessageItem>) => {
-      setMessages((prev) =>
+      const updateList = (prev: ChatMessageItem[]) =>
         prev.map((m) =>
           m.id === optimisticAssistantId
             ? {
@@ -253,8 +305,11 @@ export function ChatWorkspace({
                 is_pending: false,
               }
             : m
-        )
-      );
+        );
+      setConversationMessages(targetConvId, updateList);
+      if (conversationIdRef.current === targetConvId) {
+        setMessages((prev) => updateList(prev));
+      }
     };
 
     const controller = new AbortController();
@@ -263,9 +318,7 @@ export function ChatWorkspace({
         ? crypto.randomUUID()
         : `req-${Date.now()}-${Math.random()}`;
 
-    setActiveRequestId(requestId);
-    setAbortController(controller);
-    setIsGenerating(true);
+    startConversationGeneration(targetConvId, requestId, controller);
 
     try {
       const response = await sendChatMessage(
@@ -288,18 +341,19 @@ export function ChatWorkspace({
           role: 'assistant',
           content: response.reply || "You've used all your messages for now.",
         });
-        setIsGenerating(false);
-        setActiveRequestId(null);
-        setAbortController(null);
+        finishConversationGeneration(targetConvId);
         setQuotaExceeded({ resetAt: response.quota_reset_at || null });
         return;
       }
 
       // If backend returned a persisted user_message_id, update it
       if (response.user_message_id && options?.appendUserMessage !== false) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempUserId ? { ...m, id: response.user_message_id! } : m))
-        );
+        const updateUserMsg = (prev: ChatMessageItem[]) =>
+          prev.map((m) => (m.id === tempUserId ? { ...m, id: response.user_message_id! } : m));
+        setConversationMessages(targetConvId, updateUserMsg);
+        if (conversationIdRef.current === targetConvId) {
+          setMessages((prev) => updateUserMsg(prev));
+        }
       }
 
       // Seamlessly transform optimistic placeholder into rendered assistant message
@@ -318,26 +372,47 @@ export function ChatWorkspace({
         response.suggested_replies &&
         response.suggested_replies.length > 0
       ) {
-        setClarificationPrompt({
-          suggestedReplies: response.suggested_replies,
-          assistantMessageId: asstId,
-        });
+        if (conversationIdRef.current === targetConvId) {
+          setClarificationPrompt({
+            suggestedReplies: response.suggested_replies,
+            assistantMessageId: asstId,
+          });
+        }
       } else {
-        clearClarificationPrompt();
+        if (conversationIdRef.current === targetConvId) {
+          clearClarificationPrompt();
+        }
       }
 
-      setLatestAnimatedAssistantMessageId(asstId);
+      setAnimatedAssistantMessageId(targetConvId, asstId);
+      if (conversationIdRef.current === targetConvId) {
+        setLatestAnimatedAssistantMessageId(asstId);
+      }
 
-      if (response.conversation_id && onConversationCreated) {
-        upgradedConversationIdRef.current = response.conversation_id;
-        onConversationCreated(response.conversation_id);
+      if (response.conversation_id) {
+        if (targetConvId && targetConvId !== response.conversation_id) {
+          migrateConversationState(targetConvId, response.conversation_id);
+        }
+        if (onConversationCreated) {
+          upgradedConversationIdRef.current = response.conversation_id;
+          onConversationCreated(response.conversation_id);
+        }
+      }
+
+      if (conversationIdRef.current !== targetConvId) {
+        finishConversationGeneration(targetConvId);
       }
     } catch (err: unknown) {
       const error = err as Error;
       if (error.name === 'AbortError') {
         // Generation stopped by user: cleanly remove the optimistic placeholder without orphaned states
-        setMessages((prev) => prev.filter((m) => m.id !== optimisticAssistantId));
-        setIsGenerating(false);
+        const removePending = (prev: ChatMessageItem[]) =>
+          prev.filter((m) => m.id !== optimisticAssistantId);
+        setConversationMessages(targetConvId, removePending);
+        if (conversationIdRef.current === targetConvId) {
+          setMessages((prev) => removePending(prev));
+        }
+        finishConversationGeneration(targetConvId);
       } else {
         // On network or server failure, transform the optimistic bubble into a retryable error message
         settleOptimisticMessage({
@@ -345,10 +420,8 @@ export function ChatWorkspace({
           role: 'assistant',
           content: `Error: ${error.message || 'Failed to process inquiry.'}`,
         });
-        setIsGenerating(false);
+        finishConversationGeneration(targetConvId);
       }
-      setActiveRequestId(null);
-      setAbortController(null);
     }
   };
 
@@ -362,7 +435,7 @@ export function ChatWorkspace({
   };
 
   const handleStop = () => {
-    stopGeneration(async ({ requestId, shownText }) => {
+    stopConversationGeneration(conversationId, async ({ requestId, shownText }) => {
       try {
         await stopChat({
           request_id: requestId,
@@ -374,6 +447,8 @@ export function ChatWorkspace({
       }
     });
     setLatestAnimatedAssistantMessageId(null);
+    setAnimatedAssistantMessageId(conversationId, null);
+    setConversationMessages(conversationId, (prev) => prev.filter((m) => !m.is_pending));
     setMessages((prev) => prev.filter((m) => !m.is_pending));
   };
 
@@ -398,7 +473,9 @@ export function ChatWorkspace({
     if (!promptToRetry) return;
 
     // Remove the assistant message being retried
-    setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
+    const filtered = (prev: ChatMessageItem[]) => prev.filter((m) => m.id !== assistantMessageId);
+    setConversationMessages(conversationId, filtered);
+    setMessages((prev) => filtered(prev));
     await executeTurn(promptToRetry, replyQuote, { appendUserMessage: false });
   };
 
@@ -424,7 +501,9 @@ export function ChatWorkspace({
     // Remove this message and everything that followed it
     const msgIdx = messages.findIndex((m) => m.id === messageId);
     if (msgIdx !== -1) {
-      setMessages((prev) => prev.slice(0, msgIdx));
+      const sliced = (prev: ChatMessageItem[]) => prev.slice(0, msgIdx);
+      setConversationMessages(conversationId, sliced);
+      setMessages((prev) => sliced(prev));
     }
 
     await executeTurn(newContent, userMsg.reply_to);
@@ -470,9 +549,8 @@ export function ChatWorkspace({
                 animateTypewriter={msg.id === latestAnimatedAssistantMessageId}
                 onTypewriterComplete={() => {
                   setLatestAnimatedAssistantMessageId(null);
-                  setIsGenerating(false);
-                  setActiveRequestId(null);
-                  setAbortController(null);
+                  setAnimatedAssistantMessageId(conversationId, null);
+                  finishConversationGeneration(conversationId);
                 }}
                 onRetry={handleRetry}
                 onEditSubmit={handleEditSubmit}
@@ -501,6 +579,8 @@ export function ChatWorkspace({
             />
           )}
           <ChatInput
+            conversationId={conversationId}
+            isGenerating={isGenerating}
             onSubmit={handleSubmitMessage}
             onStop={handleStop}
             disabled={Boolean(quotaExceeded)}

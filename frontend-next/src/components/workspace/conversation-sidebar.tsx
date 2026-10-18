@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { UserProfileDropdown } from '@/components/workspace/user-profile-dropdown';
 import { useConversations, useDeleteConversation } from '@/hooks/use-conversations';
+import { useChatStore } from '@/stores/use-chat-store';
 import { cn } from '@/lib/utils';
 
 const STORAGE_KEY = 'hepozy_sidebar_collapsed';
@@ -101,6 +102,8 @@ export function ConversationSidebar({
 
   const handleDelete = (e: React.MouseEvent | React.KeyboardEvent, id: string) => {
     e.stopPropagation();
+    useChatStore.getState().stopConversationGeneration(id);
+    useChatStore.getState().clearConversationMessages(id);
     deleteMutation.mutate(id);
     if (activeId === id) {
       onSelectConversation(null);
