@@ -29,6 +29,16 @@ export function LoginForm() {
     ? 'Password updated successfully. Please log in with your new password.'
     : null;
 
+  const authError = searchParams.get('error');
+  const errorFromParams =
+    authError === 'auth-callback-failed'
+      ? 'The password recovery link is invalid or has expired. Please request a new link.'
+      : authError
+        ? 'Authentication failed. Please try again.'
+        : null;
+
+  const displayError = errorMessage || errorFromParams;
+
   const {
     register,
     handleSubmit,
@@ -75,12 +85,12 @@ export function LoginForm() {
         </p>
       </div>
 
-      {errorMessage && (
+      {displayError && (
         <div
           role="alert"
           className="mb-5 rounded-lg bg-destructive/15 border border-destructive/25 px-4 py-3 text-xs text-destructive font-medium"
         >
-          {errorMessage}
+          {displayError}
         </div>
       )}
 

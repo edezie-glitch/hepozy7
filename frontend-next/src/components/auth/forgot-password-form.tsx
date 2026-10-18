@@ -80,13 +80,15 @@ export function ForgotPasswordForm() {
 
         <div className="mt-8 space-y-3 text-xs">
           <div>
-            <button
+            <Button
+              variant="link"
+              size="sm"
               type="button"
               onClick={() => setSubmittedEmail(null)}
-              className="text-primary font-medium hover:underline cursor-pointer"
+              className="h-auto p-0 text-xs font-medium"
             >
               Try another email
-            </button>
+            </Button>
           </div>
           <div>
             <Link href="/login" className="text-muted-foreground hover:text-foreground hover:underline">

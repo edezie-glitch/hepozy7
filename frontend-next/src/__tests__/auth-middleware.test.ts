@@ -75,6 +75,11 @@ describe('Supabase Auth Middleware', () => {
     const resetRes = await updateSession(resetReq);
     expect(resetRes.status).toBe(307);
     expect(resetRes.headers.get('location')).toBe('http://localhost:3000/');
+
+    const resetTrailingSlashReq = new NextRequest(new URL('http://localhost:3000/reset-password/'));
+    const resetTrailingSlashRes = await updateSession(resetTrailingSlashReq);
+    expect(resetTrailingSlashRes.status).toBe(307);
+    expect(resetTrailingSlashRes.headers.get('location')).toBe('http://localhost:3000/');
   });
 
   it('allows authenticated user with recovery session to access /reset-password/update', async () => {

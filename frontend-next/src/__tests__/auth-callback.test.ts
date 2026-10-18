@@ -57,4 +57,14 @@ describe('Auth Callback Route Handler (/auth/callback)', () => {
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=auth-callback-failed');
   });
+
+  it('sanitizes next param to prevent open redirect vulnerabilities', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const request = new Request('http://localhost:3000/auth/callback?code=mock-code&next=//evil.com/phish');
+    const response = await GET(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/');
+  });
 });

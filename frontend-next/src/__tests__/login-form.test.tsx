@@ -61,6 +61,15 @@ describe('LoginForm Component', () => {
     ).toBeInTheDocument();
   });
 
+  it('displays error alert when redirected from failed auth callback (?error=auth-callback-failed)', () => {
+    mockSearchParams = new URLSearchParams({ error: 'auth-callback-failed' });
+    render(<LoginForm />);
+
+    expect(
+      screen.getByText(/the password recovery link is invalid or has expired/i)
+    ).toBeInTheDocument();
+  });
+
   it('displays validation errors on empty or invalid inputs', async () => {
     const user = userEvent.setup();
     render(<LoginForm />);

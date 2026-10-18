@@ -51,11 +51,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If authenticated and visiting login, register, or reset-password (request form), redirect to home /
+  const normalizedPath = pathname.replace(/\/$/, '') || '/';
   if (
     user &&
-    (pathname.startsWith('/login') ||
-      pathname.startsWith('/register') ||
-      pathname === '/reset-password')
+    (normalizedPath.startsWith('/login') ||
+      normalizedPath.startsWith('/register') ||
+      normalizedPath === '/reset-password')
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
