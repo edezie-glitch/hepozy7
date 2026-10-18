@@ -861,6 +861,151 @@ describe('ChatWorkspace Component Integration', () => {
       expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
     });
   });
+
+  describe('Ticket 22 (#31): Instant Bottom Anchor on Conversation Load Without Initial Scroll Animation', () => {
+    it('applies instant scroll positioning rather than smooth scroll on initial conversation history load (#31)', async () => {
+      const mockHistory: chatApi.ChatMessageItem[] = [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'What is Hepozy?',
+          created_at: '2026-10-14T10:00:00Z',
+        },
+        {
+          id: 'msg-2',
+          role: 'assistant',
+          content: 'Hepozy is an AI workspace assistant.',
+          created_at: '2026-10-14T10:00:05Z',
+        },
+      ];
+
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce(mockHistory);
+      const scrollIntoViewMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      expect(await screen.findByText('What is Hepozy?')).toBeInTheDocument();
+      expect(screen.getByText('Hepozy is an AI workspace assistant.')).toBeInTheDocument();
+
+      // Initial history load must anchor instantly, NOT with smooth scrolling
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'instant' })
+      );
+      expect(scrollIntoViewMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'smooth' })
+      );
+    });
+
+    it('switching between conversations in sidebar instantly positions viewport at latest message without smooth scroll (#31)', async () => {
+      const conv1History: chatApi.ChatMessageItem[] = [
+        { id: 'c1-1', role: 'user', content: 'Conversation 1 Question', created_at: '2026-10-14T10:00:00Z' },
+        { id: 'c1-2', role: 'assistant', content: 'Conversation 1 Answer', created_at: '2026-10-14T10:00:05Z' },
+      ];
+      const conv2History: chatApi.ChatMessageItem[] = [
+        { id: 'c2-1', role: 'user', content: 'Conversation 2 Question', created_at: '2026-10-14T11:00:00Z' },
+        { id: 'c2-2', role: 'assistant', content: 'Conversation 2 Answer', created_at: '2026-10-14T11:00:05Z' },
+      ];
+
+      const getHistorySpy = vi.spyOn(chatApi, 'getChatHistory');
+      getHistorySpy.mockResolvedValueOnce(conv1History);
+
+      const scrollIntoViewMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-1" />);
+
+      expect(await screen.findByText('Conversation 1 Answer')).toBeInTheDocument();
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
+
+      // Clear calls before switching
+      scrollIntoViewMock.mockClear();
+      getHistorySpy.mockResolvedValueOnce(conv2History);
+
+      // User switches to conv-2 in sidebar
+      rerender(<ChatWorkspace conversationId="conv-2" />);
+
+      expect(await screen.findByText('Conversation 2 Answer')).toBeInTheDocument();
+
+      // Switched conversation must anchor instantly, NOT with smooth scroll
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
+      expect(scrollIntoViewMock).not.toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    });
+
+    it('subsequent user message submission after initial anchor uses smooth scrolling (#31)', async () => {
+      const user = userEvent.setup();
+      const mockHistory: chatApi.ChatMessageItem[] = [
+        { id: 'msg-1', role: 'user', content: 'Prior question', created_at: '2026-10-14T10:00:00Z' },
+        { id: 'msg-2', role: 'assistant', content: 'Prior answer', created_at: '2026-10-14T10:00:05Z' },
+      ];
+
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce(mockHistory);
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(new Promise(() => {}));
+
+      const scrollIntoViewMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      expect(await screen.findByText('Prior answer')).toBeInTheDocument();
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
+
+      scrollIntoViewMock.mockClear();
+
+      // User submits a new message in the loaded conversation
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Follow-up question{enter}');
+
+      expect(screen.getByText('Follow-up question')).toBeInTheDocument();
+
+      // Real-time user message interaction must use smooth scroll
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+      expect(scrollIntoViewMock).not.toHaveBeenCalledWith(expect.objectContaining({ behavior: 'instant' }));
+    });
+
+    it('synchronously sets viewport scrollTop to scrollHeight on initial load (#31)', async () => {
+      const mockHistory: chatApi.ChatMessageItem[] = [
+        { id: 'msg-1', role: 'user', content: 'First message', created_at: '2026-10-14T10:00:00Z' },
+        { id: 'msg-2', role: 'assistant', content: 'Second message', created_at: '2026-10-14T10:00:05Z' },
+      ];
+
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce(mockHistory);
+
+      let scrollTopAssignedValue: number | null = null;
+      Object.defineProperty(HTMLDivElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get() {
+          return 1450;
+        },
+      });
+      const originalScrollTopDescriptor = Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        'scrollTop'
+      );
+      Object.defineProperty(HTMLDivElement.prototype, 'scrollTop', {
+        configurable: true,
+        set(val) {
+          scrollTopAssignedValue = val;
+        },
+        get() {
+          return scrollTopAssignedValue ?? 0;
+        },
+      });
+
+      try {
+        render(<ChatWorkspace conversationId="conv-1" />);
+
+        expect(await screen.findByText('Second message')).toBeInTheDocument();
+        expect(scrollTopAssignedValue).toBe(1450);
+      } finally {
+        delete (HTMLDivElement.prototype as unknown as { scrollHeight?: number }).scrollHeight;
+        if (originalScrollTopDescriptor) {
+          Object.defineProperty(Element.prototype, 'scrollTop', originalScrollTopDescriptor);
+        }
+      }
+    });
+  });
 });
+
 
 

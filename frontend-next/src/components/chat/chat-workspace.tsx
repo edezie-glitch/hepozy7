@@ -28,6 +28,9 @@ function getPersistableConversationId(id: string | null | undefined): string | n
   return id && !isOptimisticConversationId(id) ? id : null;
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export function ChatWorkspace({
   conversationId,
   onEnsureConversation,
@@ -40,7 +43,28 @@ export function ChatWorkspace({
     React.useState<string | null>(null);
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
   const upgradedConversationIdRef = React.useRef<string | null>(null);
+
+  const pendingInstantScrollRef = React.useRef(
+    Boolean(getPersistableConversationId(conversationId))
+  );
+  const loadedConversationIdRef = React.useRef<string | null>(null);
+  const [prevConversationId, setPrevConversationId] = React.useState(conversationId);
+
+  if (conversationId !== prevConversationId) {
+    setPrevConversationId(conversationId);
+    if (upgradedConversationIdRef.current === conversationId) {
+      // In-place upgrade of active conversation — preserve smooth scrolling
+      loadedConversationIdRef.current = conversationId;
+      pendingInstantScrollRef.current = false;
+    } else {
+      loadedConversationIdRef.current = null;
+      pendingInstantScrollRef.current = Boolean(
+        getPersistableConversationId(conversationId)
+      );
+    }
+  }
 
   const replyingTo = useChatStore((state) => state.replyingTo);
   const resetInput = useChatStore((state) => state.resetInput);
@@ -57,16 +81,37 @@ export function ChatWorkspace({
   const setQuotaExceeded = useChatStore((state) => state.setQuotaExceeded);
   const clearQuotaExceeded = useChatStore((state) => state.clearQuotaExceeded);
 
-  // Scroll to bottom helper
-  const scrollToBottom = React.useCallback(() => {
-    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, []);
+  // Scroll to bottom helper supporting instant bottom anchor and smooth scrolling
+  const scrollToBottom = React.useCallback(
+    (options?: ScrollBehavior | { instant?: boolean; behavior?: ScrollBehavior }) => {
+      let behavior: ScrollBehavior = 'smooth';
+      if (typeof options === 'string') {
+        behavior = options;
+      } else if (options && typeof options === 'object') {
+        if (options.behavior) {
+          behavior = options.behavior;
+        } else if (options.instant) {
+          behavior = 'instant';
+        }
+      }
+
+      if (behavior === 'instant' && viewportRef.current) {
+        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      }
+      messagesEndRef.current?.scrollIntoView?.({
+        behavior,
+      });
+    },
+    []
+  );
 
   // Fetch chat history whenever conversationId changes
   React.useEffect(() => {
     let active = true;
 
     if (!conversationId || isOptimisticConversationId(conversationId)) {
+      loadedConversationIdRef.current = conversationId;
+      pendingInstantScrollRef.current = false;
       queueMicrotask(() => {
         if (active) {
           setMessages([]);
@@ -83,6 +128,8 @@ export function ChatWorkspace({
     // Skip redundant history refetch when this conversation was upgraded in-place from an optimistic ID
     if (upgradedConversationIdRef.current === conversationId) {
       upgradedConversationIdRef.current = null;
+      loadedConversationIdRef.current = conversationId;
+      pendingInstantScrollRef.current = false;
       return () => {
         active = false;
       };
@@ -97,17 +144,19 @@ export function ChatWorkspace({
     getChatHistory(conversationId)
       .then((history) => {
         if (active) {
+          loadedConversationIdRef.current = conversationId;
           setMessages(history);
           setLatestAnimatedAssistantMessageId(null);
           clearClarificationPrompt();
           clearQuotaExceeded();
+          setLoadingHistory(false);
         }
       })
       .catch((err) => {
         console.error('Failed to fetch chat history', err);
-      })
-      .finally(() => {
         if (active) {
+          loadedConversationIdRef.current = conversationId;
+          pendingInstantScrollRef.current = false;
           setLoadingHistory(false);
         }
       });
@@ -117,10 +166,24 @@ export function ChatWorkspace({
     };
   }, [conversationId, clearClarificationPrompt, clearQuotaExceeded]);
 
-  // Scroll to bottom on new messages or during generation
-  React.useEffect(() => {
-    scrollToBottom();
-  }, [messages, isGenerating, scrollToBottom]);
+  // Scroll to bottom on new messages or during generation, differentiating instant anchor vs smooth scroll
+  useIsomorphicLayoutEffect(() => {
+    const isPersistedConversation = Boolean(getPersistableConversationId(conversationId));
+    // While loading history for a persisted conversation, wait for messages to be in the DOM
+    if (
+      loadingHistory ||
+      (isPersistedConversation && loadedConversationIdRef.current !== conversationId)
+    ) {
+      return;
+    }
+
+    if (pendingInstantScrollRef.current) {
+      pendingInstantScrollRef.current = false;
+      scrollToBottom('instant');
+    } else if (messages.length > 0 || isGenerating) {
+      scrollToBottom('smooth');
+    }
+  }, [messages, isGenerating, conversationId, loadingHistory, scrollToBottom]);
 
   // Central execute turn logic
   const executeTurn = async (
@@ -371,8 +434,9 @@ export function ChatWorkspace({
     <div className={`flex h-full w-full flex-col overflow-hidden ${className}`}>
       {/* Scrollable Message List Viewport with Pane-Docked Scrollbar */}
       <div
+        ref={viewportRef}
         data-testid="message-stream-scroll-viewport"
-        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+        className="flex-1 overflow-y-auto [overflow-anchor:auto] px-4 py-4 sm:px-6"
       >
         <div
           data-testid="message-stream-container"
