@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatWorkspace } from '@/components/chat/chat-workspace';
 import * as chatApi from '@/lib/api/chat';
@@ -1252,6 +1252,76 @@ describe('ChatWorkspace Component Integration', () => {
 
       expect(container).toHaveClass('max-w-4xl', 'lg:max-w-5xl');
       expect(container).toContainElement(skeleton);
+    });
+  });
+
+  describe('Ticket 23: Base UI MessageScroller Adoption & Intelligent Detachment', () => {
+    it('detaches auto-scroll when user scrolls up during generation, showing floating Scroll to bottom button and re-anchoring on click', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      let resolveChat!: (value: chatApi.ChatResponse) => void;
+      const sendPromise = new Promise<chatApi.ChatResponse>((resolve) => {
+        resolveChat = resolve;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(sendPromise);
+
+      const scrollIntoViewMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView =
+        scrollIntoViewMock as unknown as typeof window.HTMLElement.prototype.scrollIntoView;
+
+      render(<ChatWorkspace conversationId="conv-detach" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Long running streaming task{enter}');
+
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+
+      const viewport = screen.getByTestId('message-stream-scroll-viewport');
+
+      // Before user scrolls up, button is not visible
+      expect(screen.queryByTestId('scroll-to-bottom-button')).not.toBeInTheDocument();
+
+      // Simulate user scrolling up
+      Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1200 });
+      Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 400 });
+      Object.defineProperty(viewport, 'scrollTop', { configurable: true, value: 200, writable: true });
+
+      act(() => {
+        fireEvent.scroll(viewport);
+      });
+
+      // Floating "Scroll to bottom" button appears
+      const scrollToBottomBtn = await screen.findByTestId('scroll-to-bottom-button');
+      expect(scrollToBottomBtn).toBeInTheDocument();
+      expect(scrollToBottomBtn).toHaveAttribute('aria-label', 'Scroll to bottom');
+
+      scrollIntoViewMock.mockClear();
+
+      // Click "Scroll to bottom" button
+      await user.click(scrollToBottomBtn);
+
+      // Smooth scroll is triggered to re-anchor
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'smooth' })
+      );
+
+      // Button disappears
+      expect(screen.queryByTestId('scroll-to-bottom-button')).not.toBeInTheDocument();
+
+      // Resolve generation
+      act(() => {
+        resolveChat({
+          reply: 'Completed response.',
+          conversation_id: 'conv-detach',
+          user_message_id: 'u-done',
+          assistant_message_id: 'a-done',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      expect(await screen.findByText('Completed response.')).toBeInTheDocument();
     });
   });
 });

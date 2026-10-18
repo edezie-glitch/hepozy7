@@ -17,6 +17,14 @@ import { QuotaExceededModal } from '@/components/chat/quota-exceeded-modal';
 import { serializeAttachment } from '@/lib/attachments';
 import { isOptimisticConversationId } from '@/lib/api/conversations';
 import { Sparkles } from 'lucide-react';
+import {
+  MessageScrollerProvider,
+  MessageScroller,
+  MessageScrollerViewport,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerButton,
+} from '@/components/ui/message-scroller';
 
 export interface ChatWorkspaceProps {
   conversationId: string | null;
@@ -28,9 +36,6 @@ export interface ChatWorkspaceProps {
 function getPersistableConversationId(id: string | null | undefined): string | null {
   return id && !isOptimisticConversationId(id) ? id : null;
 }
-
-const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
 export function ChatWorkspace({
   conversationId,
@@ -56,44 +61,28 @@ export function ChatWorkspace({
       ? useChatStore.getState().getConversationMessages(conversationId) || []
       : []
   );
-  const [loadingHistory, setLoadingHistory] = React.useState(false);
+  const [loadingHistory, setLoadingHistory] = React.useState(() =>
+    Boolean(getPersistableConversationId(conversationId))
+  );
   const [latestAnimatedAssistantMessageId, setLatestAnimatedAssistantMessageId] =
     React.useState<string | null>(() =>
       useChatStore.getState().getAnimatedAssistantMessageId(conversationId)
     );
 
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const viewportRef = React.useRef<HTMLDivElement>(null);
-  const upgradedConversationIdRef = React.useRef<string | null>(null);
-
-  const pendingInstantScrollRef = React.useRef(
-    Boolean(getPersistableConversationId(conversationId))
-  );
-  const loadedConversationIdRef = React.useRef<string | null>(null);
   const [prevConversationId, setPrevConversationId] = React.useState(conversationId);
+
+  conversationIdRef.current = conversationId;
 
   if (conversationId !== prevConversationId) {
     setPrevConversationId(conversationId);
     if (useChatStore.getState().isConversationGenerating(conversationId)) {
       setMessages(useChatStore.getState().getConversationMessages(conversationId) || []);
+      setLoadingHistory(false);
     } else {
       setMessages([]);
+      setLoadingHistory(Boolean(getPersistableConversationId(conversationId)));
     }
   }
-
-  useIsomorphicLayoutEffect(() => {
-    conversationIdRef.current = conversationId;
-    if (upgradedConversationIdRef.current === conversationId) {
-      // In-place upgrade of active conversation — preserve smooth scrolling
-      loadedConversationIdRef.current = conversationId;
-      pendingInstantScrollRef.current = false;
-    } else {
-      loadedConversationIdRef.current = null;
-      pendingInstantScrollRef.current = Boolean(
-        getPersistableConversationId(conversationId)
-      );
-    }
-  }, [conversationId]);
 
   const replyingTo = useChatStore((state) => state.replyingTo);
   const resetInput = useChatStore((state) => state.resetInput);
@@ -105,37 +94,11 @@ export function ChatWorkspace({
   const setQuotaExceeded = useChatStore((state) => state.setQuotaExceeded);
   const clearQuotaExceeded = useChatStore((state) => state.clearQuotaExceeded);
 
-  // Scroll to bottom helper supporting instant bottom anchor and smooth scrolling
-  const scrollToBottom = React.useCallback(
-    (options?: ScrollBehavior | { instant?: boolean; behavior?: ScrollBehavior }) => {
-      let behavior: ScrollBehavior = 'smooth';
-      if (typeof options === 'string') {
-        behavior = options;
-      } else if (options && typeof options === 'object') {
-        if (options.behavior) {
-          behavior = options.behavior;
-        } else if (options.instant) {
-          behavior = 'instant';
-        }
-      }
-
-      if (behavior === 'instant' && viewportRef.current) {
-        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-      }
-      messagesEndRef.current?.scrollIntoView?.({
-        behavior,
-      });
-    },
-    []
-  );
-
   // Fetch chat history whenever conversationId changes
   React.useEffect(() => {
     let active = true;
 
     if (!conversationId || isOptimisticConversationId(conversationId)) {
-      loadedConversationIdRef.current = conversationId;
-      pendingInstantScrollRef.current = false;
       queueMicrotask(() => {
         if (active) {
           const stored = useChatStore.getState().getConversationMessages(conversationId) || [];
@@ -152,8 +115,6 @@ export function ChatWorkspace({
 
     // If conversation is actively generating in background, restore its in-flight messages immediately
     if (useChatStore.getState().isConversationGenerating(conversationId)) {
-      loadedConversationIdRef.current = conversationId;
-      pendingInstantScrollRef.current = false;
       queueMicrotask(() => {
         if (active) {
           const stored = useChatStore.getState().getConversationMessages(conversationId) || [];
@@ -170,20 +131,11 @@ export function ChatWorkspace({
     }
 
     // Skip redundant history refetch when this conversation was upgraded in-place from an optimistic ID
-    if (upgradedConversationIdRef.current === conversationId) {
-      upgradedConversationIdRef.current = null;
-      loadedConversationIdRef.current = conversationId;
-      pendingInstantScrollRef.current = false;
+    if (messages.length > 0) {
       return () => {
         active = false;
       };
     }
-
-    queueMicrotask(() => {
-      if (active) {
-        setLoadingHistory(true);
-      }
-    });
 
     getChatHistory(conversationId)
       .then((history) => {
@@ -192,7 +144,6 @@ export function ChatWorkspace({
           if (useChatStore.getState().isConversationGenerating(conversationId)) {
             return;
           }
-          loadedConversationIdRef.current = conversationId;
           setMessages(history);
           setConversationMessages(conversationId, history);
           setLatestAnimatedAssistantMessageId(null);
@@ -204,8 +155,6 @@ export function ChatWorkspace({
       .catch((err) => {
         console.error('Failed to fetch chat history', err);
         if (active) {
-          loadedConversationIdRef.current = conversationId;
-          pendingInstantScrollRef.current = false;
           setLoadingHistory(false);
         }
       });
@@ -214,25 +163,6 @@ export function ChatWorkspace({
       active = false;
     };
   }, [conversationId, clearClarificationPrompt, clearQuotaExceeded, setConversationMessages]);
-
-  // Scroll to bottom on new messages or during generation, differentiating instant anchor vs smooth scroll
-  useIsomorphicLayoutEffect(() => {
-    const isPersistedConversation = Boolean(getPersistableConversationId(conversationId));
-    // While loading history for a persisted conversation, wait for messages to be in the DOM
-    if (
-      loadingHistory ||
-      (isPersistedConversation && loadedConversationIdRef.current !== conversationId)
-    ) {
-      return;
-    }
-
-    if (pendingInstantScrollRef.current) {
-      pendingInstantScrollRef.current = false;
-      scrollToBottom('instant');
-    } else if (messages.length > 0 || isGenerating) {
-      scrollToBottom('smooth');
-    }
-  }, [messages, isGenerating, conversationId, loadingHistory, scrollToBottom]);
 
   // Central execute turn logic
   const executeTurn = async (
@@ -395,7 +325,6 @@ export function ChatWorkspace({
           migrateConversationState(targetConvId, response.conversation_id);
         }
         if (onConversationCreated) {
-          upgradedConversationIdRef.current = response.conversation_id;
           onConversationCreated(response.conversation_id);
         }
       }
@@ -512,50 +441,63 @@ export function ChatWorkspace({
 
   return (
     <div className={`flex h-full w-full flex-col overflow-hidden ${className}`}>
-      {/* Scrollable Message List Viewport with Pane-Docked Scrollbar */}
-      <div
-        ref={viewportRef}
-        data-testid="message-stream-scroll-viewport"
-        className="flex-1 overflow-y-auto [overflow-anchor:auto] px-4 py-4 sm:px-6"
+      {/* Scrollable Message List Viewport with Base UI MessageScroller */}
+      <MessageScrollerProvider
+        autoScroll
+        anchorKey={conversationId}
+        isLoading={loadingHistory}
+        skipInstantAnchor={messages.length > 0}
       >
-        <div
-          data-testid="message-stream-container"
-          className="mx-auto flex min-h-full max-w-4xl lg:max-w-5xl w-full flex-col space-y-2"
-        >
-          {loadingHistory ? (
-            <MessageStreamSkeleton />
-          ) : messages.length === 0 ? (
-            <div
-              data-testid="empty-conversation-card"
-              className="flex flex-1 flex-col items-center justify-center text-center p-6 text-muted-foreground"
+        <MessageScroller className="flex-1 relative min-h-0 overflow-hidden">
+          <MessageScrollerViewport
+            data-testid="message-stream-scroll-viewport"
+            className="flex-1 overflow-y-auto [overflow-anchor:auto] px-4 py-4 sm:px-6"
+          >
+            <MessageScrollerContent
+              data-testid="message-stream-container"
+              className="mx-auto flex min-h-full max-w-4xl lg:max-w-5xl w-full flex-col space-y-2"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
-                <Sparkles className="h-6 w-6" />
-              </div>
-              <h3 className="text-base font-semibold text-foreground">Conversation Ready</h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                Send a message below to consult Hepozy Assistant or ask for document analysis.
-              </p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <MessageItem
-                key={msg.id}
-                message={msg}
-                animateTypewriter={msg.id === latestAnimatedAssistantMessageId}
-                onTypewriterComplete={() => {
-                  setLatestAnimatedAssistantMessageId(null);
-                  setAnimatedAssistantMessageId(conversationId, null);
-                  finishConversationGeneration(conversationId);
-                }}
-                onRetry={handleRetry}
-                onEditSubmit={handleEditSubmit}
-              />
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+              {loadingHistory ? (
+                <MessageStreamSkeleton />
+              ) : messages.length === 0 ? (
+                <div
+                  data-testid="empty-conversation-card"
+                  className="flex flex-1 flex-col items-center justify-center text-center p-6 text-muted-foreground"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground">Conversation Ready</h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    Send a message below to consult Hepozy Assistant or ask for document analysis.
+                  </p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <MessageScrollerItem
+                    key={msg.id}
+                    messageId={msg.id}
+                    scrollAnchor={msg.role === 'user'}
+                  >
+                    <MessageItem
+                      message={msg}
+                      animateTypewriter={msg.id === latestAnimatedAssistantMessageId}
+                      onTypewriterComplete={() => {
+                        setLatestAnimatedAssistantMessageId(null);
+                        setAnimatedAssistantMessageId(conversationId, null);
+                        finishConversationGeneration(conversationId);
+                      }}
+                      onRetry={handleRetry}
+                      onEditSubmit={handleEditSubmit}
+                    />
+                  </MessageScrollerItem>
+                ))
+              )}
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton />
+        </MessageScroller>
+      </MessageScrollerProvider>
 
       {/* Sticky Bottom Input Bar */}
       <div
