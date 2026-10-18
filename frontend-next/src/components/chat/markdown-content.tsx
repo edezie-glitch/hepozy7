@@ -85,7 +85,7 @@ export function MarkdownTable({ className = '', children, ...props }: React.Comp
   };
 
   return (
-    <div data-testid="table-block" className="my-3">
+    <div data-testid="table-block" className="my-3 min-w-0 max-w-full">
       <div className="flex items-center justify-end mb-1">
         <button
           type="button"
@@ -106,7 +106,7 @@ export function MarkdownTable({ className = '', children, ...props }: React.Comp
           )}
         </button>
       </div>
-      <div className="table-container w-full overflow-x-auto rounded-lg border border-border/80 shadow-xs">
+      <div className="table-container w-full min-w-0 overflow-x-auto rounded-lg border border-border/80 shadow-xs">
         <table
           ref={tableRef}
           className={`w-full border-collapse text-left text-xs sm:text-sm ${className}`}
@@ -123,7 +123,7 @@ export function MarkdownContent({ content, className = '' }: MarkdownContentProp
   return (
     <div
       data-testid="markdown-content"
-      className={`markdown-body space-y-2 text-sm sm:text-base leading-relaxed break-words ${className}`}
+      className={`markdown-body space-y-2 text-sm sm:text-base leading-relaxed break-words min-w-0 ${className}`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}

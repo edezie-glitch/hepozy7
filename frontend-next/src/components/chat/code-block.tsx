@@ -77,7 +77,7 @@ export function CodeBlock({ code, language = '', className = '' }: CodeBlockProp
   return (
     <div
       data-testid="code-block"
-      className={`relative my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/30 text-foreground shadow-xs ${className}`}
+      className={`relative my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/30 text-foreground shadow-xs min-w-0 max-w-full ${className}`}
     >
       {/* Code Header Bar with semantic tokens */}
       <div className="flex items-center justify-between border-b border-border/60 bg-muted/60 px-4 py-1.5 text-xs">
@@ -105,7 +105,7 @@ export function CodeBlock({ code, language = '', className = '' }: CodeBlockProp
       </div>
 
       {/* Code Body */}
-      <pre className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground scrollbar-thin">
+      <pre className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground scrollbar-thin min-w-0">
         {highlightedHtml ? (
           <code
             className={`language-${normalizedLang}`}

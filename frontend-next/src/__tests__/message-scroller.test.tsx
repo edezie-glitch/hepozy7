@@ -40,7 +40,10 @@ describe('Base UI MessageScroller Primitive', () => {
 
     expect(screen.getByTestId('scroller-root')).toBeInTheDocument();
     expect(screen.getByTestId('message-stream-scroll-viewport')).toHaveClass('overflow-y-auto');
-    expect(screen.getByTestId('message-stream-container')).toHaveTextContent('Message 1');
+    const container = screen.getByTestId('message-stream-container');
+    expect(container).toHaveTextContent('Message 1');
+    expect(container).toHaveStyle({ minWidth: '0px' });
+    expect(container.firstElementChild).toHaveClass('min-w-0');
   });
 
   it('applies instant scroll on initial history load and smooth scroll on subsequent additions', () => {
@@ -187,7 +190,7 @@ describe('Base UI MessageScroller Primitive', () => {
 
     const innerColumn = container.firstElementChild as HTMLElement;
     expect(innerColumn).toBeInTheDocument();
-    expect(innerColumn).toHaveClass('mx-auto', 'max-w-3xl', 'w-full', 'justify-end');
+    expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'w-full', 'justify-end');
 
     const button = screen.getByTestId('scroll-to-bottom-button');
     expect(button).toBeInTheDocument();

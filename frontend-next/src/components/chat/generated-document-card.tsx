@@ -67,7 +67,7 @@ export function GeneratedDocumentCard({
   return (
     <div
       data-testid="generated-document-card"
-      className={`mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 dark:bg-primary/5 dark:border-primary/40 p-3 sm:p-3.5 shadow-xs transition-all hover:border-primary/50 ${className}`}
+      className={`mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 dark:bg-primary/5 dark:border-primary/40 p-3 sm:p-3.5 shadow-xs transition-all hover:border-primary/50 w-full min-w-0 ${className}`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Document Format Icon */}

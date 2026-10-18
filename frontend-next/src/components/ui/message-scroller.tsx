@@ -209,7 +209,7 @@ export interface MessageScrollerContentProps
 export const MessageScrollerContent = React.forwardRef<
   HTMLDivElement,
   MessageScrollerContentProps
->(({ className, children, ...props }, ref) => {
+>(({ className, style, children, ...props }, ref) => {
   const {
     messagesEndRef,
     consumePendingInstantAnchor,
@@ -234,7 +234,12 @@ export const MessageScrollerContent = React.forwardRef<
   });
 
   return (
-    <BaseScrollArea.Content ref={ref} className={cn('relative', className)} {...props}>
+    <BaseScrollArea.Content
+      ref={ref}
+      style={{ minWidth: 0, ...style }}
+      className={cn('relative', className)}
+      {...props}
+    >
       {children}
       <div
         ref={messagesEndRef}
@@ -262,7 +267,7 @@ export const MessageScrollerItem = React.forwardRef<
       ref={ref}
       data-message-id={messageId}
       data-scroll-anchor={scrollAnchor ? 'true' : undefined}
-      className={cn('w-full', className)}
+      className={cn('w-full min-w-0', className)}
       {...props}
     >
       {children}
@@ -293,7 +298,7 @@ export const MessageScrollerButton = React.forwardRef<
       children,
       onClick,
       alignToColumn = false,
-      columnClassName = 'max-w-3xl',
+      columnClassName = 'max-w-4xl',
       ...props
     },
     ref

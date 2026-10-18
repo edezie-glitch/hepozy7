@@ -510,7 +510,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Medium Max-Width Centered Container Alignment (#21)', () => {
-    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-3xl', async () => {
+    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-4xl', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-u1',
@@ -533,7 +533,7 @@ describe('ChatWorkspace Component Integration', () => {
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toBeInTheDocument();
       expect(messageStreamContainer).toHaveClass('mx-auto');
-      expect(messageStreamContainer).toHaveClass('max-w-3xl');
+      expect(messageStreamContainer).toHaveClass('max-w-4xl');
 
       const scrollViewport = screen.getByTestId('message-stream-scroll-viewport');
       expect(scrollViewport).toBeInTheDocument();
@@ -590,12 +590,12 @@ describe('ChatWorkspace Component Integration', () => {
       expect(emptyCard).toBeInTheDocument();
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toContainElement(emptyCard);
-      expect(messageStreamContainer).toHaveClass('max-w-3xl');
+      expect(messageStreamContainer).toHaveClass('max-w-4xl');
 
-      // Bottom input bar container has max-w-3xl width bounds
+      // Bottom input bar container has max-w-4xl width bounds
       const inputBounds = screen.getByTestId('chat-input-bounds');
       expect(inputBounds).toBeInTheDocument();
-      expect(inputBounds).toHaveClass('max-w-3xl');
+      expect(inputBounds).toHaveClass('max-w-4xl');
       expect(inputBounds).toHaveClass('mx-auto');
 
       // When clarificationPrompt is active, it renders inside the input bounds
@@ -1248,7 +1248,7 @@ describe('ChatWorkspace Component Integration', () => {
       const skeleton = await screen.findByTestId('message-stream-skeleton');
       const container = screen.getByTestId('message-stream-container');
 
-      expect(container).toHaveClass('max-w-3xl');
+      expect(container).toHaveClass('max-w-4xl');
       expect(container).toContainElement(skeleton);
     });
   });
@@ -1324,7 +1324,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Ticket 24 (#32): Uniform Max-Width Constraint & Column Alignment for Chat Workspace', () => {
-    it('enforces identical max-width constraints (max-w-3xl) and mx-auto centering across message stream and bottom input bounds', async () => {
+    it('enforces identical max-width constraints (max-w-4xl) and mx-auto centering across message stream and bottom input bounds', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
 
       render(<ChatWorkspace conversationId="conv-width-check" />);
@@ -1332,20 +1332,20 @@ describe('ChatWorkspace Component Integration', () => {
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       const inputBounds = screen.getByTestId('chat-input-bounds');
 
-      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
-      expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
     });
 
-    it('ensures message stream skeleton matches the exact max-w-3xl bounds during history load', async () => {
+    it('ensures message stream skeleton matches the exact max-w-4xl bounds during history load', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockImplementationOnce(() => new Promise(() => {}));
 
       render(<ChatWorkspace conversationId="conv-skeleton-width" />);
 
       const skeleton = await screen.findByTestId('message-stream-skeleton');
-      expect(skeleton).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+      expect(skeleton).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
     });
 
-    it('anchors floating scroll button inside a centered max-w-3xl column container when detached', async () => {
+    it('anchors floating scroll button inside a centered max-w-4xl column container when detached', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-1',
@@ -1376,7 +1376,7 @@ describe('ChatWorkspace Component Integration', () => {
 
       const innerColumn = container.firstElementChild as HTMLElement;
       expect(innerColumn).toBeInTheDocument();
-      expect(innerColumn).toHaveClass('mx-auto', 'max-w-3xl', 'w-full', 'justify-end');
+      expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'w-full', 'justify-end');
 
       const button = screen.getByTestId('scroll-to-bottom-button');
       expect(button).toBeInTheDocument();
@@ -1392,7 +1392,7 @@ describe('ChatWorkspace Component Integration', () => {
       const emptyCard = await screen.findByTestId('empty-conversation-card');
       const emptyStreamContainer = screen.getByTestId('message-stream-container');
       expect(emptyStreamContainer).toContainElement(emptyCard);
-      expect(emptyStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+      expect(emptyStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
 
       unmount();
 
@@ -1422,7 +1422,47 @@ describe('ChatWorkspace Component Integration', () => {
       expect(bubbles).toHaveLength(2);
       expect(populatedStreamContainer).toContainElement(bubbles[0]);
       expect(populatedStreamContainer).toContainElement(bubbles[1]);
-      expect(populatedStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+      expect(populatedStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
+    });
+
+    it('prevents column width blowout on messages containing files, wide tables, and code blocks with minWidth: 0 override', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
+        {
+          id: 'msg-u-wide',
+          role: 'user',
+          content: 'Process document and output wide table',
+          created_at: '2026-10-14T10:00:00Z',
+          attachments: [
+            {
+              name: 'huge-data-sheet-presentation-analysis.xlsx',
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              url: 'https://example.com/huge-data-sheet-presentation-analysis.xlsx',
+            },
+          ],
+        },
+        {
+          id: 'msg-a-wide',
+          role: 'assistant',
+          content: `Here is the comprehensive report:\n\n| Column 1 With Extremely Long Text Header | Column 2 Description of Data | Column 3 Values | Column 4 Additional Notes |\n|---|---|---|---|\n| Very long text item that would normally blow out table widths | Data row description | 1000 | Extra notes spanning widely |\n\n\`\`\`typescript\nconst extremelyLongCodeSnippetLineThatWouldSpanAcrossTheEntireScreenWithoutWrappingOrScrolling = { field: 'value' };\n\`\`\``,
+          created_at: '2026-10-14T10:00:05Z',
+          download_url: '/files/Processed-Report.xlsx',
+          file_name: 'Processed-Report.xlsx',
+        },
+      ]);
+
+      render(<ChatWorkspace conversationId="conv-wide-content" />);
+
+      expect(await screen.findByText(/Process document and output wide table/)).toBeInTheDocument();
+      expect(await screen.findByTestId('generated-document-card')).toBeInTheDocument();
+      expect(await screen.findByTestId('table-block')).toBeInTheDocument();
+      expect(await screen.findByTestId('code-block')).toBeInTheDocument();
+
+      const messageStreamContainer = screen.getByTestId('message-stream-container');
+      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full', 'min-w-0');
+      expect(messageStreamContainer).toHaveStyle({ minWidth: '0px' });
+
+      const inputBounds = screen.getByTestId('chat-input-bounds');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
     });
   });
 });

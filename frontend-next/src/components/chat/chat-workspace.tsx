@@ -455,7 +455,7 @@ export function ChatWorkspace({
           >
             <MessageScrollerContent
               data-testid="message-stream-container"
-              className="mx-auto flex min-h-full max-w-3xl w-full flex-col space-y-2"
+              className="mx-auto flex min-h-full max-w-4xl w-full min-w-0 flex-col space-y-2"
             >
               {loadingHistory ? (
                 <MessageStreamSkeleton />
@@ -506,7 +506,7 @@ export function ChatWorkspace({
       >
         <div
           data-testid="chat-input-bounds"
-          className="mx-auto max-w-3xl w-full space-y-2"
+          className="mx-auto max-w-4xl w-full space-y-2"
         >
           {clarificationPrompt && (
             <ClarificationPrompt

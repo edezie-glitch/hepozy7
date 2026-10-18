@@ -303,13 +303,13 @@ describe('WorkspaceShell Component', () => {
     const streamContainer = await screen.findByTestId('message-stream-container');
     expect(streamContainer).toBeInTheDocument();
     expect(streamContainer).toHaveClass('mx-auto');
-    expect(streamContainer).toHaveClass('max-w-3xl');
+    expect(streamContainer).toHaveClass('max-w-4xl');
     expect(streamContainer).toHaveClass('w-full');
 
     const inputBounds = screen.getByTestId('chat-input-bounds');
     expect(inputBounds).toBeInTheDocument();
     expect(inputBounds).toHaveClass('mx-auto');
-    expect(inputBounds).toHaveClass('max-w-3xl');
+    expect(inputBounds).toHaveClass('max-w-4xl');
     expect(inputBounds).toHaveClass('w-full');
   });
 

@@ -174,7 +174,7 @@ export function MessageItem({
 
   return (
     <div
-      className={`group relative flex w-full flex-col gap-1.5 py-2.5 transition-colors ${
+      className={`group relative flex w-full min-w-0 flex-col gap-1.5 py-2.5 transition-colors ${
         isUser ? 'items-end' : 'items-start'
       }`}
     >
@@ -182,7 +182,7 @@ export function MessageItem({
         className={`flex gap-3 sm:gap-3.5 ${
           isUser
             ? 'max-w-[85%] sm:max-w-[78%] flex-row-reverse'
-            : 'w-full max-w-full flex-row'
+            : 'w-full max-w-full min-w-0 flex-row'
         }`}
       >
         {/* Assistant Avatar */}
@@ -197,7 +197,7 @@ export function MessageItem({
           <div
             data-testid="message-bubble"
             onClick={handleBubbleClick}
-            className={`relative break-words transition-colors ${
+            className={`relative break-words min-w-0 transition-colors ${
               isUser
                 ? 'rounded-2xl px-4 py-3 text-sm sm:text-base shadow-xs bg-secondary text-secondary-foreground border border-border/80 whitespace-pre-wrap'
                 : 'px-0 py-0.5 text-sm sm:text-base text-foreground'
@@ -329,7 +329,7 @@ export function MessageItem({
                 </div>
               </div>
             ) : (
-              <div className="relative">
+              <div className="relative min-w-0">
                 <MarkdownContent content={displayedText} />
                 {isAnimating && (
                   <span className="inline-block h-3.5 w-1.5 ml-1 bg-primary animate-pulse align-middle" />

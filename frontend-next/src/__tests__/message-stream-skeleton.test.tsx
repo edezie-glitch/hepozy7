@@ -71,7 +71,7 @@ describe('MessageStreamSkeleton Component', () => {
     const skeleton = screen.getByTestId('message-stream-skeleton');
     expect(skeleton).toBeInTheDocument();
     expect(skeleton).toHaveClass('w-full');
-    expect(skeleton).toHaveClass('max-w-3xl');
+    expect(skeleton).toHaveClass('max-w-4xl');
     expect(skeleton).toHaveClass('mx-auto');
   });
 });
