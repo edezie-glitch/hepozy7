@@ -187,7 +187,7 @@ describe('Base UI MessageScroller Primitive', () => {
 
     const innerColumn = container.firstElementChild as HTMLElement;
     expect(innerColumn).toBeInTheDocument();
-    expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full', 'justify-end');
+    expect(innerColumn).toHaveClass('mx-auto', 'max-w-3xl', 'w-full', 'justify-end');
 
     const button = screen.getByTestId('scroll-to-bottom-button');
     expect(button).toBeInTheDocument();

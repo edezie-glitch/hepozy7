@@ -293,7 +293,7 @@ export const MessageScrollerButton = React.forwardRef<
       children,
       onClick,
       alignToColumn = false,
-      columnClassName = 'max-w-4xl lg:max-w-5xl',
+      columnClassName = 'max-w-3xl',
       ...props
     },
     ref

@@ -510,7 +510,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Medium Max-Width Centered Container Alignment (#21)', () => {
-    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-4xl lg:max-w-5xl', async () => {
+    it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-3xl', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-u1',
@@ -533,8 +533,7 @@ describe('ChatWorkspace Component Integration', () => {
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toBeInTheDocument();
       expect(messageStreamContainer).toHaveClass('mx-auto');
-      expect(messageStreamContainer).toHaveClass('max-w-4xl');
-      expect(messageStreamContainer).toHaveClass('lg:max-w-5xl');
+      expect(messageStreamContainer).toHaveClass('max-w-3xl');
 
       const scrollViewport = screen.getByTestId('message-stream-scroll-viewport');
       expect(scrollViewport).toBeInTheDocument();
@@ -591,14 +590,12 @@ describe('ChatWorkspace Component Integration', () => {
       expect(emptyCard).toBeInTheDocument();
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       expect(messageStreamContainer).toContainElement(emptyCard);
-      expect(messageStreamContainer).toHaveClass('max-w-4xl');
-      expect(messageStreamContainer).toHaveClass('lg:max-w-5xl');
+      expect(messageStreamContainer).toHaveClass('max-w-3xl');
 
-      // Bottom input bar container has max-w-4xl lg:max-w-5xl width bounds
+      // Bottom input bar container has max-w-3xl width bounds
       const inputBounds = screen.getByTestId('chat-input-bounds');
       expect(inputBounds).toBeInTheDocument();
-      expect(inputBounds).toHaveClass('max-w-4xl');
-      expect(inputBounds).toHaveClass('lg:max-w-5xl');
+      expect(inputBounds).toHaveClass('max-w-3xl');
       expect(inputBounds).toHaveClass('mx-auto');
 
       // When clarificationPrompt is active, it renders inside the input bounds
@@ -1251,7 +1248,7 @@ describe('ChatWorkspace Component Integration', () => {
       const skeleton = await screen.findByTestId('message-stream-skeleton');
       const container = screen.getByTestId('message-stream-container');
 
-      expect(container).toHaveClass('max-w-4xl', 'lg:max-w-5xl');
+      expect(container).toHaveClass('max-w-3xl');
       expect(container).toContainElement(skeleton);
     });
   });
@@ -1327,7 +1324,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Ticket 24 (#32): Uniform Max-Width Constraint & Column Alignment for Chat Workspace', () => {
-    it('enforces identical max-width constraints (max-w-4xl lg:max-w-5xl) and mx-auto centering across message stream and bottom input bounds', async () => {
+    it('enforces identical max-width constraints (max-w-3xl) and mx-auto centering across message stream and bottom input bounds', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
 
       render(<ChatWorkspace conversationId="conv-width-check" />);
@@ -1335,20 +1332,20 @@ describe('ChatWorkspace Component Integration', () => {
       const messageStreamContainer = screen.getByTestId('message-stream-container');
       const inputBounds = screen.getByTestId('chat-input-bounds');
 
-      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
-      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
     });
 
-    it('ensures message stream skeleton matches the exact max-w-4xl lg:max-w-5xl bounds during history load', async () => {
+    it('ensures message stream skeleton matches the exact max-w-3xl bounds during history load', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockImplementationOnce(() => new Promise(() => {}));
 
       render(<ChatWorkspace conversationId="conv-skeleton-width" />);
 
       const skeleton = await screen.findByTestId('message-stream-skeleton');
-      expect(skeleton).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+      expect(skeleton).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
     });
 
-    it('anchors floating scroll button inside a centered max-w-4xl lg:max-w-5xl column container when detached', async () => {
+    it('anchors floating scroll button inside a centered max-w-3xl column container when detached', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
         {
           id: 'msg-1',
@@ -1379,7 +1376,7 @@ describe('ChatWorkspace Component Integration', () => {
 
       const innerColumn = container.firstElementChild as HTMLElement;
       expect(innerColumn).toBeInTheDocument();
-      expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full', 'justify-end');
+      expect(innerColumn).toHaveClass('mx-auto', 'max-w-3xl', 'w-full', 'justify-end');
 
       const button = screen.getByTestId('scroll-to-bottom-button');
       expect(button).toBeInTheDocument();
@@ -1395,7 +1392,7 @@ describe('ChatWorkspace Component Integration', () => {
       const emptyCard = await screen.findByTestId('empty-conversation-card');
       const emptyStreamContainer = screen.getByTestId('message-stream-container');
       expect(emptyStreamContainer).toContainElement(emptyCard);
-      expect(emptyStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+      expect(emptyStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
 
       unmount();
 
@@ -1425,7 +1422,7 @@ describe('ChatWorkspace Component Integration', () => {
       expect(bubbles).toHaveLength(2);
       expect(populatedStreamContainer).toContainElement(bubbles[0]);
       expect(populatedStreamContainer).toContainElement(bubbles[1]);
-      expect(populatedStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+      expect(populatedStreamContainer).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
     });
   });
 });
