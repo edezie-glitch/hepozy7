@@ -184,8 +184,8 @@ export function MessageItem({
             : 'relative w-full max-w-full min-w-0 flex-row gap-3 sm:gap-0'
         }`}
       >
-        {/* Assistant Avatar */}
-        {!isUser && (
+        {/* Assistant Avatar - rendered on loading state only */}
+        {!isUser && message.is_pending && (
           <div
             data-testid="assistant-avatar"
             className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full overflow-hidden border border-border/60 shadow-xs bg-muted/40 mt-0.5 sm:absolute sm:-left-11 sm:top-0.5"

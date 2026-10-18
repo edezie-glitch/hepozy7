@@ -425,16 +425,31 @@ describe('MessageItem Component', () => {
     expect(screen.queryByRole('button', { name: /retry turn/i })).not.toBeInTheDocument();
   });
 
-  describe('Ticket 25: Animated Bot Avatar & Desktop Offset', () => {
-    it('renders animated video avatar with 123.mp4 and poster fallback for assistant turns', () => {
-      const msg: ChatMessageItem = {
-        id: 'msg-video-avatar',
+  describe('Ticket 25: Animated Bot Avatar on Loading State Only & Desktop Offset', () => {
+    it('does NOT render assistant bot avatar on completed reply turns', () => {
+      const replyMsg: ChatMessageItem = {
+        id: 'msg-reply-no-avatar',
         role: 'assistant',
-        content: 'I am your assistant with an animated avatar.',
+        content: 'I am your assistant reply without an avatar logo.',
         created_at: '2026-10-18T10:00:00Z',
       };
 
-      render(<MessageItem message={msg} animateTypewriter={false} />);
+      render(<MessageItem message={replyMsg} animateTypewriter={false} />);
+
+      expect(screen.queryByTestId('assistant-avatar')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('assistant-avatar-video')).not.toBeInTheDocument();
+    });
+
+    it('renders animated video avatar with 123.mp4 and poster fallback on assistant loading state (is_pending)', () => {
+      const pendingMsg: ChatMessageItem = {
+        id: 'msg-video-avatar-pending',
+        role: 'assistant',
+        content: '',
+        created_at: '2026-10-18T10:00:00Z',
+        is_pending: true,
+      };
+
+      render(<MessageItem message={pendingMsg} animateTypewriter={false} />);
 
       const avatar = screen.getByTestId('assistant-avatar');
       expect(avatar).toBeInTheDocument();
@@ -452,15 +467,16 @@ describe('MessageItem Component', () => {
       expect(fallbackImg).toHaveAttribute('src', '/hepozy.jpg');
     });
 
-    it('positions assistant avatar outside content column on desktop viewports and keeps mobile inline', () => {
-      const msg: ChatMessageItem = {
-        id: 'msg-avatar-offset',
+    it('positions assistant avatar outside content column on desktop viewports and keeps mobile inline during loading state', () => {
+      const pendingMsg: ChatMessageItem = {
+        id: 'msg-avatar-offset-pending',
         role: 'assistant',
-        content: 'Text starts flush with column edge.',
+        content: '',
         created_at: '2026-10-18T10:00:00Z',
+        is_pending: true,
       };
 
-      render(<MessageItem message={msg} animateTypewriter={false} />);
+      render(<MessageItem message={pendingMsg} animateTypewriter={false} />);
 
       const avatar = screen.getByTestId('assistant-avatar');
       expect(avatar.className).toMatch(/sm:absolute|sm:-ml-/);
