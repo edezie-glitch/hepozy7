@@ -252,8 +252,14 @@ describe('ConversationSidebar Component', () => {
     // Collapse the sidebar
     await user.click(screen.getByRole('button', { name: /collapse sidebar/i }));
 
-    // Hepozy Logo
-    expect(screen.getByText('H')).toBeInTheDocument();
+    // Hepozy Official Logo & Expand Control
+    const logoImg = screen.getByRole('img', { name: /hepozy logo/i });
+    expect(logoImg).toBeInTheDocument();
+    expect(logoImg).toHaveAttribute('src', '/hepozy.jpg');
+
+    // Redundant separate expand button is eliminated: exactly one expand button exists
+    const expandButtons = screen.getAllByRole('button', { name: /expand sidebar/i });
+    expect(expandButtons).toHaveLength(1);
 
     // New Chat (+) button in rail
     const newChatBtn = screen.getByRole('button', { name: /new chat/i });
@@ -485,6 +491,80 @@ describe('ConversationSidebar Component', () => {
     expandBtn.focus();
     await user.keyboard(' ');
     expect(aside).toHaveClass('w-64');
+  });
+
+  describe('Ticket 25: Sidebar Collapsed Hover Maximize & Official Logo', () => {
+    it('renders the official Hepozy logo image in expanded state and replaces letter H placeholder', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          isCollapsed={false}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      const logoImg = screen.getByRole('img', { name: /hepozy logo/i });
+      expect(logoImg).toBeInTheDocument();
+      expect(logoImg).toHaveAttribute('src', '/hepozy.jpg');
+      expect(screen.queryByText(/^H$/)).not.toBeInTheDocument();
+      expect(screen.getByText('Hepozy')).toBeInTheDocument();
+    });
+
+    it('transforms logo container into hover expand button in collapsed state, eliminating redundant separate toggle button', async () => {
+      const user = userEvent.setup();
+      const onToggleCollapse = vi.fn();
+
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      const { container } = render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          isCollapsed={true}
+          onToggleCollapse={onToggleCollapse}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      // Verify collapsed width
+      const aside = container.querySelector('aside');
+      expect(aside).toHaveClass('w-16');
+
+      // Exactly one expand trigger button exists (no redundant separate button)
+      const expandButtons = screen.getAllByRole('button', { name: /expand sidebar/i });
+      expect(expandButtons).toHaveLength(1);
+
+      const logoExpandBtn = expandButtons[0];
+      expect(logoExpandBtn).toHaveAttribute('data-testid', 'sidebar-toggle-button');
+      expect(logoExpandBtn).toHaveAttribute('aria-expanded', 'false');
+
+      // Official logo is inside the button
+      const logoImg = screen.getByRole('img', { name: /hepozy logo/i });
+      expect(logoExpandBtn).toContainElement(logoImg);
+
+      // Expand icon is present with hover/focus opacity transitions
+      const expandIcon = screen.getByTestId('sidebar-expand-icon');
+      expect(expandIcon).toBeInTheDocument();
+      expect(expandIcon).toHaveClass('opacity-0');
+      expect(expandIcon).toHaveClass('group-hover:opacity-100');
+
+      // Clicking it fires the toggle callback with next collapsed state (false)
+      await user.click(logoExpandBtn);
+      expect(onToggleCollapse).toHaveBeenCalledWith(false);
+    });
   });
 });
 

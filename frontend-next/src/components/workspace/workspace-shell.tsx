@@ -129,7 +129,15 @@ export function WorkspaceShell() {
                   <span>AI Workspace Assistant</span>
                 </div>
 
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden border border-border/50 shadow-xs">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/hepozy.jpg"
+                      alt="Hepozy logo"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                   <span className="text-2xl font-bold tracking-tight sm:text-3xl text-foreground">
                     Hepozy
                   </span>

@@ -592,10 +592,10 @@ describe('ChatWorkspace Component Integration', () => {
       expect(messageStreamContainer).toContainElement(emptyCard);
       expect(messageStreamContainer).toHaveClass('max-w-4xl');
 
-      // Bottom input bar container has max-w-4xl width bounds
+      // Bottom input bar container has differentiated max-w-3xl width bounds
       const inputBounds = screen.getByTestId('chat-input-bounds');
       expect(inputBounds).toBeInTheDocument();
-      expect(inputBounds).toHaveClass('max-w-4xl');
+      expect(inputBounds).toHaveClass('max-w-3xl');
       expect(inputBounds).toHaveClass('mx-auto');
 
       // When clarificationPrompt is active, it renders inside the input bounds
@@ -1324,7 +1324,7 @@ describe('ChatWorkspace Component Integration', () => {
   });
 
   describe('Ticket 24 (#32): Uniform Max-Width Constraint & Column Alignment for Chat Workspace', () => {
-    it('enforces identical max-width constraints (max-w-4xl) and mx-auto centering across message stream and bottom input bounds', async () => {
+    it('enforces open max-width constraint (max-w-4xl) for message stream and differentiated max-w-3xl for bottom input bounds', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
 
       render(<ChatWorkspace conversationId="conv-width-check" />);
@@ -1333,7 +1333,7 @@ describe('ChatWorkspace Component Integration', () => {
       const inputBounds = screen.getByTestId('chat-input-bounds');
 
       expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
-      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
     });
 
     it('ensures message stream skeleton matches the exact max-w-4xl bounds during history load', async () => {
@@ -1462,7 +1462,42 @@ describe('ChatWorkspace Component Integration', () => {
       expect(messageStreamContainer).toHaveStyle({ minWidth: '0px' });
 
       const inputBounds = screen.getByTestId('chat-input-bounds');
-      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+    });
+  });
+
+  describe('Ticket 25: Chatbox Width Differentiation & Column Architecture', () => {
+    it('differentiates widths by keeping conversation stream at max-w-4xl while constraining bottom chat input to max-w-3xl', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      render(<ChatWorkspace conversationId="conv-width-diff-suite" />);
+
+      const messageStreamContainer = screen.getByTestId('message-stream-container');
+      const inputBounds = screen.getByTestId('chat-input-bounds');
+
+      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
+    });
+
+    it('coordinates clarification suggestions and input box within max-w-3xl bounds', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      render(<ChatWorkspace conversationId="conv-clarification-width" />);
+
+      expect(await screen.findByTestId('empty-conversation-card')).toBeInTheDocument();
+
+      act(() => {
+        useChatStore.getState().setClarificationPrompt({
+          suggestedReplies: ['Yes', 'No'],
+          assistantMessageId: 'asst-clarif-1',
+        });
+      });
+
+      const inputBounds = screen.getByTestId('chat-input-bounds');
+      expect(inputBounds).toHaveClass('max-w-3xl');
+      const clarification = await screen.findByTestId('clarification-prompt');
+      expect(clarification).toBeInTheDocument();
+      expect(inputBounds).toContainElement(clarification);
     });
   });
 });

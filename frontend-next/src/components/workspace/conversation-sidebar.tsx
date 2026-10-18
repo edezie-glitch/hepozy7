@@ -121,43 +121,73 @@ export function ConversationSidebar({
     >
       {/* Brand & Action Header */}
       <div className={cn('flex flex-col gap-3 p-3 border-b border-border/70', collapsed && 'items-center')}>
-        <div className={cn('flex items-center justify-between px-1 py-0.5 w-full', collapsed && 'flex-col gap-3')}>
-          <div className="flex items-center gap-2.5 overflow-hidden" title="Hepozy">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground text-xs shadow-sm">
-              H
-            </div>
-            {!collapsed && (
-              <span className="font-bold tracking-tight text-foreground text-sm truncate">
-                Hepozy
-              </span>
-            )}
-          </div>
-
-          {/* Drawer Toggle Button */}
+        {collapsed ? (
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
+                  type="button"
                   onClick={handleToggleCollapse}
-                  aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                  aria-expanded={!collapsed}
+                  aria-label="Expand sidebar"
+                  aria-expanded={false}
                   data-testid="sidebar-toggle-button"
-                  className={cn(
-                    'text-muted-foreground hover:text-foreground cursor-pointer',
-                    collapsed ? 'h-8 w-8' : 'h-7 w-7'
-                  )}
+                  className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 hover:bg-accent hover:border-primary/40 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </Button>
+                  {/* Official Hepozy Logo Image at rest */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/hepozy.jpg"
+                    alt="Hepozy logo"
+                    className="h-full w-full rounded-lg object-cover transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0"
+                  />
+                  {/* Expand icon on hover/focus */}
+                  <PanelLeft
+                    className="absolute h-4 w-4 text-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    aria-hidden="true"
+                    data-testid="sidebar-expand-icon"
+                  />
+                </button>
               }
             />
-            <TooltipContent side="right">
-              {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            </TooltipContent>
+            <TooltipContent side="right">Expand sidebar</TooltipContent>
           </Tooltip>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between px-1 py-0.5 w-full">
+            <div className="flex items-center gap-2.5 overflow-hidden" title="Hepozy">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border/50 shadow-xs">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/hepozy.jpg"
+                  alt="Hepozy logo"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <span className="font-bold tracking-tight text-foreground text-sm truncate">
+                Hepozy
+              </span>
+            </div>
+
+            {/* Drawer Collapse Button */}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleToggleCollapse}
+                    aria-label="Collapse sidebar"
+                    aria-expanded={true}
+                    data-testid="sidebar-toggle-button"
+                    className="text-muted-foreground hover:text-foreground cursor-pointer h-7 w-7"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="right">Collapse sidebar</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
         {/* New Chat Button */}
         {collapsed ? (

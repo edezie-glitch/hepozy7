@@ -424,5 +424,62 @@ describe('MessageItem Component', () => {
     expect(screen.queryByRole('button', { name: /reply to message/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /retry turn/i })).not.toBeInTheDocument();
   });
+
+  describe('Ticket 25: Animated Bot Avatar & Desktop Offset', () => {
+    it('renders animated video avatar with 123.mp4 and poster fallback for assistant turns', () => {
+      const msg: ChatMessageItem = {
+        id: 'msg-video-avatar',
+        role: 'assistant',
+        content: 'I am your assistant with an animated avatar.',
+        created_at: '2026-10-18T10:00:00Z',
+      };
+
+      render(<MessageItem message={msg} animateTypewriter={false} />);
+
+      const avatar = screen.getByTestId('assistant-avatar');
+      expect(avatar).toBeInTheDocument();
+
+      const video = screen.getByTestId('assistant-avatar-video');
+      expect(video).toBeInTheDocument();
+      expect(video).toHaveAttribute('src', '/123.mp4');
+      expect(video).toHaveAttribute('poster', '/hepozy.jpg');
+      expect(video).toHaveAttribute('autoplay');
+      expect(video).toHaveAttribute('loop');
+      expect(video).toHaveAttribute('playsinline');
+
+      const fallbackImg = video.querySelector('img');
+      expect(fallbackImg).toBeInTheDocument();
+      expect(fallbackImg).toHaveAttribute('src', '/hepozy.jpg');
+    });
+
+    it('positions assistant avatar outside content column on desktop viewports and keeps mobile inline', () => {
+      const msg: ChatMessageItem = {
+        id: 'msg-avatar-offset',
+        role: 'assistant',
+        content: 'Text starts flush with column edge.',
+        created_at: '2026-10-18T10:00:00Z',
+      };
+
+      render(<MessageItem message={msg} animateTypewriter={false} />);
+
+      const avatar = screen.getByTestId('assistant-avatar');
+      expect(avatar.className).toMatch(/sm:absolute|sm:-ml-/);
+    });
+
+    it('does not render assistant avatar for user turns, preserving neat user bubble styling', () => {
+      const userMsg: ChatMessageItem = {
+        id: 'msg-user-no-avatar',
+        role: 'user',
+        content: 'User message without bot avatar.',
+        created_at: '2026-10-18T10:00:00Z',
+      };
+
+      render(<MessageItem message={userMsg} />);
+
+      expect(screen.queryByTestId('assistant-avatar')).not.toBeInTheDocument();
+      const bubble = screen.getByTestId('message-bubble');
+      expect(bubble).toHaveClass('bg-secondary', 'rounded-2xl', 'border');
+    });
+  });
 });
 

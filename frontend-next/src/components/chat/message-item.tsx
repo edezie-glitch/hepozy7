@@ -5,7 +5,6 @@ import { useChatStore } from '@/stores/use-chat-store';
 import { Button } from '@/components/ui/button';
 import type { ChatMessageItem } from '@/lib/api/chat';
 import {
-  Sparkles,
   Copy,
   Check,
   Quote,
@@ -179,16 +178,36 @@ export function MessageItem({
       }`}
     >
       <div
-        className={`flex gap-3 sm:gap-3.5 ${
+        className={`flex ${
           isUser
-            ? 'max-w-[85%] sm:max-w-[78%] flex-row-reverse'
-            : 'w-full max-w-full min-w-0 flex-row'
+            ? 'max-w-[85%] sm:max-w-[78%] flex-row-reverse gap-3 sm:gap-3.5'
+            : 'relative w-full max-w-full min-w-0 flex-row gap-3 sm:gap-0'
         }`}
       >
         {/* Assistant Avatar */}
         {!isUser && (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-xs mt-0.5">
-            <Sparkles className="h-4 w-4" />
+          <div
+            data-testid="assistant-avatar"
+            className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full overflow-hidden border border-border/60 shadow-xs bg-muted/40 mt-0.5 sm:absolute sm:-left-11 sm:top-0.5"
+          >
+            <video
+              src="/123.mp4"
+              poster="/hepozy.jpg"
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-hidden="true"
+              data-testid="assistant-avatar-video"
+              className="h-full w-full object-cover rounded-full"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/hepozy.jpg"
+                alt="Hepozy avatar"
+                className="h-full w-full object-cover rounded-full"
+              />
+            </video>
           </div>
         )}
 

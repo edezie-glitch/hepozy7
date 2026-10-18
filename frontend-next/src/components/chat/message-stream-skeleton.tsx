@@ -65,10 +65,10 @@ export function MessageStreamSkeleton({ className = '' }: MessageStreamSkeletonP
             data-testid="assistant-message-skeleton"
             className="group relative flex w-full flex-col gap-1.5 py-2.5 items-start"
           >
-            <div className="flex gap-3 sm:gap-3.5 w-full max-w-full flex-row">
+            <div className="relative flex gap-3 sm:gap-0 w-full max-w-full flex-row">
               <div
                 data-testid="skeleton-avatar"
-                className="flex h-8 w-8 shrink-0 rounded-full bg-muted/60 dark:bg-muted/40 border border-border/40 shadow-xs mt-0.5 animate-pulse"
+                className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 rounded-full bg-muted/60 dark:bg-muted/40 border border-border/40 shadow-xs mt-0.5 animate-pulse sm:absolute sm:-left-11 sm:top-0.5"
               />
               <div className="flex flex-col gap-2 min-w-0 flex-1 px-0 py-0.5">
                 <div className="flex flex-col gap-2.5 w-full pt-1">

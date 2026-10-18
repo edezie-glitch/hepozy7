@@ -309,7 +309,7 @@ describe('WorkspaceShell Component', () => {
     const inputBounds = screen.getByTestId('chat-input-bounds');
     expect(inputBounds).toBeInTheDocument();
     expect(inputBounds).toHaveClass('mx-auto');
-    expect(inputBounds).toHaveClass('max-w-4xl');
+    expect(inputBounds).toHaveClass('max-w-3xl');
     expect(inputBounds).toHaveClass('w-full');
   });
 
