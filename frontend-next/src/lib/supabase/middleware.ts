@@ -31,6 +31,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicPath =
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth') ||
     pathname.startsWith('/verifypend') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
@@ -48,8 +50,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If authenticated and visiting login or register, redirect to home /
-  if (user && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
+  // If authenticated and visiting login, register, or reset-password (request form), redirect to home /
+  if (
+    user &&
+    (pathname.startsWith('/login') ||
+      pathname.startsWith('/register') ||
+      pathname === '/reset-password')
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);

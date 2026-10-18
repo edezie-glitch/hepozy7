@@ -6,11 +6,14 @@ import { LoginForm } from '@/components/auth/login-form';
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
 
+let mockSearchParams = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     refresh: mockRefresh,
   }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 const mockSignInWithPassword = vi.fn();
@@ -26,6 +29,7 @@ vi.mock('@/lib/supabase/client', () => ({
 describe('LoginForm Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
   });
 
   it('renders login form elements properly', () => {
@@ -38,6 +42,23 @@ describe('LoginForm Component', () => {
       'href',
       '/register'
     );
+  });
+
+  it('renders "Forgot password?" link pointing to /reset-password', () => {
+    render(<LoginForm />);
+
+    const forgotLink = screen.getByRole('link', { name: /forgot password\??/i });
+    expect(forgotLink).toBeInTheDocument();
+    expect(forgotLink).toHaveAttribute('href', '/reset-password');
+  });
+
+  it('displays success banner when redirected from password reset (?reset=success)', () => {
+    mockSearchParams = new URLSearchParams({ reset: 'success' });
+    render(<LoginForm />);
+
+    expect(
+      screen.getByText(/password updated successfully/i)
+    ).toBeInTheDocument();
   });
 
   it('displays validation errors on empty or invalid inputs', async () => {

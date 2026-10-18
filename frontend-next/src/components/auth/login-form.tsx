@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,8 +20,14 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  const isResetSuccess = searchParams.get('reset') === 'success';
+  const successMessage = isResetSuccess
+    ? 'Password updated successfully. Please log in with your new password.'
+    : null;
 
   const {
     register,
@@ -78,6 +84,15 @@ export function LoginForm() {
         </div>
       )}
 
+      {successMessage && (
+        <div
+          role="status"
+          className="mb-5 rounded-lg bg-primary/15 border border-primary/25 px-4 py-3 text-xs text-primary font-medium"
+        >
+          {successMessage}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -95,7 +110,15 @@ export function LoginForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/reset-password"
+              className="text-xs text-primary font-medium hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"

@@ -41,9 +41,21 @@ describe('Supabase Auth Middleware', () => {
     const verifyReq = new NextRequest(new URL('http://localhost:3000/verifypend'));
     const verifyRes = await updateSession(verifyReq);
     expect(verifyRes.status).toBe(200);
+
+    const resetReq = new NextRequest(new URL('http://localhost:3000/reset-password'));
+    const resetRes = await updateSession(resetReq);
+    expect(resetRes.status).toBe(200);
+
+    const updateReq = new NextRequest(new URL('http://localhost:3000/reset-password/update'));
+    const updateRes = await updateSession(updateReq);
+    expect(updateRes.status).toBe(200);
+
+    const callbackReq = new NextRequest(new URL('http://localhost:3000/auth/callback'));
+    const callbackRes = await updateSession(callbackReq);
+    expect(callbackRes.status).toBe(200);
   });
 
-  it('redirects authenticated user away from /login and /register to /', async () => {
+  it('redirects authenticated user away from /login, /register, and /reset-password to /', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'test-user-id', email: 'user@example.com' } },
       error: null,
@@ -58,6 +70,23 @@ describe('Supabase Auth Middleware', () => {
     const regRes = await updateSession(regReq);
     expect(regRes.status).toBe(307);
     expect(regRes.headers.get('location')).toBe('http://localhost:3000/');
+
+    const resetReq = new NextRequest(new URL('http://localhost:3000/reset-password'));
+    const resetRes = await updateSession(resetReq);
+    expect(resetRes.status).toBe(307);
+    expect(resetRes.headers.get('location')).toBe('http://localhost:3000/');
+  });
+
+  it('allows authenticated user with recovery session to access /reset-password/update', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'user@example.com' } },
+      error: null,
+    });
+
+    const updateReq = new NextRequest(new URL('http://localhost:3000/reset-password/update'));
+    const updateRes = await updateSession(updateReq);
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.headers.get('location')).toBeNull();
   });
 
   it('allows authenticated user to access protected route /', async () => {
