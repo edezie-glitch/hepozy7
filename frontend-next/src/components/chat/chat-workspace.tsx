@@ -10,6 +10,7 @@ import {
   type ChatMessageItem,
 } from '@/lib/api/chat';
 import { MessageItem } from '@/components/chat/message-item';
+import { MessageStreamSkeleton } from '@/components/chat/message-stream-skeleton';
 import { ChatInput } from '@/components/chat/chat-input';
 import { ClarificationPrompt } from '@/components/chat/clarification-prompt';
 import { QuotaExceededModal } from '@/components/chat/quota-exceeded-modal';
@@ -522,12 +523,7 @@ export function ChatWorkspace({
           className="mx-auto flex min-h-full max-w-4xl lg:max-w-5xl w-full flex-col space-y-2"
         >
           {loadingHistory ? (
-            <div className="flex flex-1 items-center justify-center space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 animate-spin text-primary" />
-                <span>Loading messages...</span>
-              </div>
-            </div>
+            <MessageStreamSkeleton />
           ) : messages.length === 0 ? (
             <div
               data-testid="empty-conversation-card"

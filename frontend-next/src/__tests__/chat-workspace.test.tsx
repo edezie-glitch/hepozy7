@@ -1190,7 +1190,72 @@ describe('ChatWorkspace Component Integration', () => {
       expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
     });
   });
+
+  describe('Ticket 20 (#29): Message Stream Skeleton Placeholders for Conversation History Loading', () => {
+    it('renders structured skeleton placeholder rows instead of generic spinner while loading history', async () => {
+      let resolveHistory!: (value: chatApi.ChatMessageItem[]) => void;
+      const historyPromise = new Promise<chatApi.ChatMessageItem[]>((resolve) => {
+        resolveHistory = resolve;
+      });
+      vi.spyOn(chatApi, 'getChatHistory').mockReturnValueOnce(historyPromise);
+
+      render(<ChatWorkspace conversationId="conv-history-load" />);
+
+      // The structured skeleton placeholder is rendered
+      const skeleton = await screen.findByTestId('message-stream-skeleton');
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton).toHaveAttribute('role', 'status');
+      expect(skeleton).toHaveAttribute('aria-busy', 'true');
+      expect(screen.getByText('Loading conversation history...')).toBeInTheDocument();
+
+      // Alternating user and assistant skeleton rows are rendered
+      expect(screen.getAllByTestId('user-message-skeleton').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByTestId('assistant-message-skeleton').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByTestId('skeleton-avatar').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByTestId('skeleton-shimmer-bar').length).toBeGreaterThanOrEqual(4);
+
+      // Generic spinner is eliminated
+      expect(screen.queryByText('Loading messages...')).not.toBeInTheDocument();
+
+      // When history resolves, skeletons are replaced by actual messages
+      await act(async () => {
+        resolveHistory([
+          {
+            id: 'm-loaded-1',
+            role: 'user',
+            content: 'Hello history',
+            created_at: '2026-10-18T10:00:00Z',
+          },
+          {
+            id: 'm-loaded-2',
+            role: 'assistant',
+            content: 'Loaded response content',
+            created_at: '2026-10-18T10:00:05Z',
+          },
+        ]);
+      });
+
+      expect(await screen.findByText('Hello history')).toBeInTheDocument();
+      expect(screen.getByText('Loaded response content')).toBeInTheDocument();
+      expect(screen.queryByTestId('message-stream-skeleton')).not.toBeInTheDocument();
+    });
+
+    it('ensures message stream container maintains centered layout bounds during loading', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockImplementationOnce(
+        () => new Promise(() => {}) // pending forever
+      );
+
+      render(<ChatWorkspace conversationId="conv-layout-check" />);
+
+      const skeleton = await screen.findByTestId('message-stream-skeleton');
+      const container = screen.getByTestId('message-stream-container');
+
+      expect(container).toHaveClass('max-w-4xl', 'lg:max-w-5xl');
+      expect(container).toContainElement(skeleton);
+    });
+  });
 });
+
 
 
 
