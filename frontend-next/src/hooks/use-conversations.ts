@@ -14,6 +14,11 @@ export function useConversations() {
   return useQuery<Conversation[]>({
     queryKey: CONVERSATIONS_QUERY_KEY,
     queryFn: getConversations,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasPendingTitle = Boolean(data && data.some((conv) => !conv.title));
+      return hasPendingTitle ? 1500 : false;
+    },
   });
 }
 

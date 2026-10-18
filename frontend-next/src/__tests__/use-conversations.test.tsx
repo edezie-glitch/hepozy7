@@ -130,4 +130,33 @@ describe('useConversations Hooks', () => {
     resolveUpdate({ status: 'ok' });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
+
+  it('useConversations dynamically polls when a conversation has null title and reflects persisted title', async () => {
+    // Initial fetch returns conversation with title=null (pending background generation)
+    const initialList = [{ id: 'conv-new', title: null, created_at: '2026-10-18T00:00:00Z' }];
+    // Subsequent fetch returns conversation with generated title persisted
+    const updatedList = [
+      { id: 'conv-new', title: 'Autonomous Title Generation', created_at: '2026-10-18T00:00:00Z' },
+    ];
+
+    const getSpy = vi
+      .spyOn(conversationsApi, 'getConversations')
+      .mockResolvedValueOnce(initialList)
+      .mockResolvedValueOnce(updatedList);
+
+    const { result } = renderHook(() => useConversations(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].title).toBeNull();
+
+    // Trigger refetch (as refetchInterval would do on interval)
+    await result.current.refetch();
+
+    await waitFor(() => {
+      expect(result.current.data?.[0].title).toBe('Autonomous Title Generation');
+    });
+    expect(getSpy).toHaveBeenCalledTimes(2);
+  });
 });
