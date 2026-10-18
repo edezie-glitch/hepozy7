@@ -147,4 +147,52 @@ describe('Base UI MessageScroller Primitive', () => {
     // Button disappears once re-anchored
     expect(screen.queryByTestId('scroll-to-bottom-button')).not.toBeInTheDocument();
   });
+
+  it('Ticket 24 (#32): renders MessageScrollerButton anchored within a centered column container when alignToColumn is enabled', async () => {
+    render(
+      <MessageScrollerProvider autoScroll>
+        <MessageScroller data-testid="scroller-root">
+          <MessageScrollerViewport data-testid="message-stream-scroll-viewport">
+            <MessageScrollerContent data-testid="message-stream-container">
+              <MessageScrollerItem messageId="msg-1">
+                <div>Message 1</div>
+              </MessageScrollerItem>
+            </MessageScrollerContent>
+          </MessageScrollerViewport>
+          <MessageScrollerButton alignToColumn data-testid="scroll-to-bottom-button" />
+        </MessageScroller>
+      </MessageScrollerProvider>
+    );
+
+    const viewport = screen.getByTestId('message-stream-scroll-viewport');
+    expect(screen.queryByTestId('scroll-to-bottom-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('scroll-to-bottom-container')).not.toBeInTheDocument();
+
+    // Detach by scrolling up
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1000 });
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 400 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, value: 200, writable: true });
+
+    act(() => {
+      fireEvent.scroll(viewport);
+    });
+
+    const container = await screen.findByTestId('scroll-to-bottom-container');
+    expect(container).toBeInTheDocument();
+    expect(container).toHaveClass('pointer-events-none');
+    expect(container).toHaveClass('absolute');
+    expect(container).toHaveClass('inset-x-0');
+    expect(container).toHaveClass('bottom-4');
+    expect(container).toHaveClass('px-4', 'sm:px-6');
+
+    const innerColumn = container.firstElementChild as HTMLElement;
+    expect(innerColumn).toBeInTheDocument();
+    expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full', 'justify-end');
+
+    const button = screen.getByTestId('scroll-to-bottom-button');
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveClass('pointer-events-auto');
+    expect(innerColumn).toContainElement(button);
+  });
 });
+

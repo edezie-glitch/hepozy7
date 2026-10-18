@@ -64,4 +64,16 @@ describe('MessageStreamSkeleton Component', () => {
       expect(ts.className).toMatch(/animate-pulse/);
     });
   });
+
+  it('Ticket 24 (#32): enforces uniform max-width column bounds matching live message stream', () => {
+    render(<MessageStreamSkeleton />);
+
+    const skeleton = screen.getByTestId('message-stream-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect(skeleton).toHaveClass('w-full');
+    expect(skeleton).toHaveClass('max-w-4xl');
+    expect(skeleton).toHaveClass('lg:max-w-5xl');
+    expect(skeleton).toHaveClass('mx-auto');
+  });
 });
+

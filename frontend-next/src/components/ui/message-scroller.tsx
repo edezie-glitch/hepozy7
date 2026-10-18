@@ -274,37 +274,75 @@ MessageScrollerItem.displayName = 'MessageScrollerItem';
 export interface MessageScrollerButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   className?: string;
+  containerClassName?: string;
+  alignToColumn?: boolean;
+  columnClassName?: string;
 }
+
+const BASE_SCROLL_BUTTON_CLASS =
+  'flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-md backdrop-blur-xs transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-in fade-in zoom-in-95 cursor-pointer';
 
 export const MessageScrollerButton = React.forwardRef<
   HTMLButtonElement,
   MessageScrollerButtonProps
->(({ className, children, onClick, ...props }, ref) => {
-  const { isDetached, scrollToBottom } = useMessageScroller();
+>(
+  (
+    {
+      className,
+      containerClassName,
+      children,
+      onClick,
+      alignToColumn = false,
+      columnClassName = 'max-w-4xl lg:max-w-5xl',
+      ...props
+    },
+    ref
+  ) => {
+    const { isDetached, scrollToBottom } = useMessageScroller();
 
-  if (!isDetached) {
-    return null;
+    if (!isDetached) {
+      return null;
+    }
+
+    const button = (
+      <button
+        ref={ref}
+        type="button"
+        data-testid="scroll-to-bottom-button"
+        aria-label="Scroll to bottom"
+        title="Scroll to bottom"
+        className={cn(
+          BASE_SCROLL_BUTTON_CLASS,
+          alignToColumn ? 'pointer-events-auto' : 'absolute bottom-4 right-6 z-20',
+          className
+        )}
+        onClick={(e) => {
+          onClick?.(e);
+          scrollToBottom('smooth');
+        }}
+        {...props}
+      >
+        {children ?? <ArrowDown className="h-4 w-4" />}
+      </button>
+    );
+
+    if (alignToColumn) {
+      return (
+        <div
+          data-testid="scroll-to-bottom-container"
+          className={cn(
+            'pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4 sm:px-6',
+            containerClassName
+          )}
+        >
+          <div className={cn('mx-auto flex w-full justify-end', columnClassName)}>
+            {button}
+          </div>
+        </div>
+      );
+    }
+
+    return button;
   }
-
-  return (
-    <button
-      ref={ref}
-      type="button"
-      data-testid="scroll-to-bottom-button"
-      aria-label="Scroll to bottom"
-      title="Scroll to bottom"
-      className={cn(
-        'absolute bottom-4 right-6 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-md backdrop-blur-xs transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-in fade-in zoom-in-95 cursor-pointer',
-        className
-      )}
-      onClick={(e) => {
-        onClick?.(e);
-        scrollToBottom('smooth');
-      }}
-      {...props}
-    >
-      {children ?? <ArrowDown className="h-4 w-4" />}
-    </button>
-  );
-});
+);
 MessageScrollerButton.displayName = 'MessageScrollerButton';

@@ -594,10 +594,11 @@ describe('ChatWorkspace Component Integration', () => {
       expect(messageStreamContainer).toHaveClass('max-w-4xl');
       expect(messageStreamContainer).toHaveClass('lg:max-w-5xl');
 
-      // Bottom input bar container has max-w-4xl width bounds
+      // Bottom input bar container has max-w-4xl lg:max-w-5xl width bounds
       const inputBounds = screen.getByTestId('chat-input-bounds');
       expect(inputBounds).toBeInTheDocument();
       expect(inputBounds).toHaveClass('max-w-4xl');
+      expect(inputBounds).toHaveClass('lg:max-w-5xl');
       expect(inputBounds).toHaveClass('mx-auto');
 
       // When clarificationPrompt is active, it renders inside the input bounds
@@ -1322,6 +1323,109 @@ describe('ChatWorkspace Component Integration', () => {
       });
 
       expect(await screen.findByText('Completed response.')).toBeInTheDocument();
+    });
+  });
+
+  describe('Ticket 24 (#32): Uniform Max-Width Constraint & Column Alignment for Chat Workspace', () => {
+    it('enforces identical max-width constraints (max-w-4xl lg:max-w-5xl) and mx-auto centering across message stream and bottom input bounds', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      render(<ChatWorkspace conversationId="conv-width-check" />);
+
+      const messageStreamContainer = screen.getByTestId('message-stream-container');
+      const inputBounds = screen.getByTestId('chat-input-bounds');
+
+      expect(messageStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+      expect(inputBounds).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+    });
+
+    it('ensures message stream skeleton matches the exact max-w-4xl lg:max-w-5xl bounds during history load', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockImplementationOnce(() => new Promise(() => {}));
+
+      render(<ChatWorkspace conversationId="conv-skeleton-width" />);
+
+      const skeleton = await screen.findByTestId('message-stream-skeleton');
+      expect(skeleton).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+    });
+
+    it('anchors floating scroll button inside a centered max-w-4xl lg:max-w-5xl column container when detached', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'Detachment position check',
+          created_at: '2026-10-14T10:00:00Z',
+        },
+      ]);
+
+      render(<ChatWorkspace conversationId="conv-scroller-alignment" />);
+
+      expect(await screen.findByText('Detachment position check')).toBeInTheDocument();
+
+      const viewport = screen.getByTestId('message-stream-scroll-viewport');
+
+      // Scroll up to detach
+      Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1200 });
+      Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 400 });
+      Object.defineProperty(viewport, 'scrollTop', { configurable: true, value: 200, writable: true });
+
+      act(() => {
+        fireEvent.scroll(viewport);
+      });
+
+      const container = await screen.findByTestId('scroll-to-bottom-container');
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveClass('pointer-events-none', 'absolute', 'inset-x-0', 'bottom-4', 'px-4', 'sm:px-6');
+
+      const innerColumn = container.firstElementChild as HTMLElement;
+      expect(innerColumn).toBeInTheDocument();
+      expect(innerColumn).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full', 'justify-end');
+
+      const button = screen.getByTestId('scroll-to-bottom-button');
+      expect(button).toBeInTheDocument();
+      expect(button).toHaveClass('pointer-events-auto');
+    });
+
+    it('verifies layout stability and proper rendering of empty state and message items within the unified width', async () => {
+      // 1. Empty state
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      const { unmount } = render(<ChatWorkspace conversationId="conv-empty-state-width" />);
+
+      const emptyCard = await screen.findByTestId('empty-conversation-card');
+      const emptyStreamContainer = screen.getByTestId('message-stream-container');
+      expect(emptyStreamContainer).toContainElement(emptyCard);
+      expect(emptyStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
+
+      unmount();
+
+      // 2. Populated message items
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
+        {
+          id: 'msg-u-1',
+          role: 'user',
+          content: 'Hello message item width test',
+          created_at: '2026-10-14T10:00:00Z',
+        },
+        {
+          id: 'msg-a-1',
+          role: 'assistant',
+          content: 'Assistant response within unified width bounds',
+          created_at: '2026-10-14T10:00:05Z',
+        },
+      ]);
+
+      render(<ChatWorkspace conversationId="conv-populated-width" />);
+
+      expect(await screen.findByText('Hello message item width test')).toBeInTheDocument();
+      expect(await screen.findByText('Assistant response within unified width bounds')).toBeInTheDocument();
+
+      const populatedStreamContainer = screen.getByTestId('message-stream-container');
+      const bubbles = screen.getAllByTestId('message-bubble');
+      expect(bubbles).toHaveLength(2);
+      expect(populatedStreamContainer).toContainElement(bubbles[0]);
+      expect(populatedStreamContainer).toContainElement(bubbles[1]);
+      expect(populatedStreamContainer).toHaveClass('mx-auto', 'max-w-4xl', 'lg:max-w-5xl', 'w-full');
     });
   });
 });

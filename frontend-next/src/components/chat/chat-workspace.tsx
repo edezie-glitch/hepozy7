@@ -495,7 +495,7 @@ export function ChatWorkspace({
               )}
             </MessageScrollerContent>
           </MessageScrollerViewport>
-          <MessageScrollerButton />
+          <MessageScrollerButton alignToColumn />
         </MessageScroller>
       </MessageScrollerProvider>
 
@@ -506,7 +506,7 @@ export function ChatWorkspace({
       >
         <div
           data-testid="chat-input-bounds"
-          className="mx-auto max-w-4xl w-full space-y-2"
+          className="mx-auto max-w-4xl lg:max-w-5xl w-full space-y-2"
         >
           {clarificationPrompt && (
             <ClarificationPrompt

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 export interface MessageStreamSkeletonProps {
   className?: string;
@@ -26,7 +27,7 @@ export function MessageStreamSkeleton({ className = '' }: MessageStreamSkeletonP
       role="status"
       aria-busy="true"
       aria-live="polite"
-      className={`flex w-full flex-col space-y-2 ${className}`}
+      className={cn('mx-auto flex w-full max-w-4xl lg:max-w-5xl flex-col space-y-2', className)}
     >
       <span className="sr-only">Loading conversation history...</span>
 
