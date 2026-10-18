@@ -397,5 +397,32 @@ describe('MessageItem Component', () => {
     expect(bubble.className).not.toContain('bg-card');
     expect(bubble.className).not.toContain('border');
   });
+
+  it('renders optimistic assistant placeholder with animated typing/shimmer indicator when is_pending is true', () => {
+    const pendingMsg: ChatMessageItem = {
+      id: 'asst-opt-1',
+      role: 'assistant',
+      content: '',
+      created_at: '2026-10-18T10:00:00Z',
+      is_pending: true,
+    };
+
+    render(<MessageItem message={pendingMsg} />);
+
+    // Renders placeholder container with status/busy accessibility attributes
+    const placeholder = screen.getByTestId('optimistic-assistant-placeholder');
+    expect(placeholder).toBeInTheDocument();
+    expect(placeholder).toHaveAttribute('role', 'status');
+    expect(placeholder).toHaveAttribute('aria-busy', 'true');
+
+    // Renders shimmer typing indicator
+    const shimmer = screen.getByTestId('typing-shimmer-indicator');
+    expect(shimmer).toBeInTheDocument();
+
+    // Action buttons (copy, reply, retry, edit) should not be shown while pending
+    expect(screen.queryByRole('button', { name: /copy message/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reply to message/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /retry turn/i })).not.toBeInTheDocument();
+  });
 });
 

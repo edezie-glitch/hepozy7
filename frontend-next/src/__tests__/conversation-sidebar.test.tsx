@@ -301,7 +301,7 @@ describe('ConversationSidebar Component', () => {
 
     // Settings is accessible via User Profile menu
     await user.click(userProfileTrigger);
-    const settingsMenuItem = screen.getByRole('menuitem', { name: /settings/i });
+    const settingsMenuItem = await screen.findByRole('menuitem', { name: /settings/i });
     expect(settingsMenuItem).toBeInTheDocument();
     await user.click(settingsMenuItem);
     expect(onOpenSettings).toHaveBeenCalled();

@@ -24,6 +24,7 @@ export interface ChatMessageItem {
   attachments?: ChatAttachment[];
   download_url?: string | null;
   file_name?: string | null;
+  is_pending?: boolean;
 }
 
 export type SendChatMessageParams = ChatRequest;

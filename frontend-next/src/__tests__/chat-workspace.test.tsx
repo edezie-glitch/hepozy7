@@ -682,6 +682,185 @@ describe('ChatWorkspace Component Integration', () => {
 
     expect(historySpy).not.toHaveBeenCalled();
   });
+
+  describe('Ticket 13 (#23): Optimistic Message Dispatch & Shimmer Typing Placeholder', () => {
+    it('submitting a user message immediately appends an optimistic assistant placeholder bubble to the message stream (#23)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      let resolveChat!: (value: chatApi.ChatResponse) => void;
+      const sendPromise = new Promise<chatApi.ChatResponse>((resolve) => {
+        resolveChat = resolve;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(sendPromise);
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Explain quantum computing{enter}');
+
+      // Immediately appends user message
+      expect(screen.getByText('Explain quantum computing')).toBeInTheDocument();
+
+      // Immediately appends optimistic assistant placeholder with typing shimmer
+      const placeholder = screen.getByTestId('optimistic-assistant-placeholder');
+      expect(placeholder).toBeInTheDocument();
+      expect(placeholder).toHaveAttribute('role', 'status');
+      expect(placeholder).toHaveAttribute('aria-busy', 'true');
+      expect(screen.getByTestId('typing-shimmer-indicator')).toBeInTheDocument();
+
+      // When generation completes, placeholder transforms into rendered markdown assistant message
+      act(() => {
+        resolveChat({
+          reply: 'Quantum computing uses qubits.',
+          conversation_id: 'conv-1',
+          user_message_id: 'u-1',
+          assistant_message_id: 'a-1',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      expect(await screen.findByText('Quantum computing uses qubits.')).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+    });
+
+    it('verifies streaming token arrival transitions placeholder into animated assistant message (#23)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+      let resolveChat!: (value: chatApi.ChatResponse) => void;
+      const sendPromise = new Promise<chatApi.ChatResponse>((resolve) => {
+        resolveChat = resolve;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(sendPromise);
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Stream this message{enter}');
+
+      // Initially shows optimistic placeholder
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+
+      // Generation completes / tokens arrive
+      act(() => {
+        resolveChat({
+          reply: 'Streaming tokens arriving smoothly.',
+          conversation_id: 'conv-1',
+          user_message_id: 'u-stream',
+          assistant_message_id: 'a-stream',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      // Optimistic placeholder seamlessly transforms into the assistant message
+      expect(await screen.findByText(/Streaming tokens/)).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+    });
+
+    it('cleans up the optimistic placeholder without orphaned states when user clicks Stop (#23)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+      vi.spyOn(chatApi, 'stopChat').mockResolvedValueOnce({ status: 'stopped' });
+
+      vi.spyOn(chatApi, 'sendChatMessage').mockImplementation(
+        (_params, signal) =>
+          new Promise((_, reject) => {
+            signal?.addEventListener('abort', () => {
+              const err = new Error('The user aborted a request.');
+              err.name = 'AbortError';
+              reject(err);
+            });
+          })
+      );
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Write a long essay{enter}');
+
+      expect(screen.getByText('Write a long essay')).toBeInTheDocument();
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+
+      const stopBtn = await screen.findByRole('button', { name: /stop generation/i });
+      await user.click(stopBtn);
+
+      // Optimistic placeholder is cleanly removed without orphaned assistant bubbles
+      await waitFor(() => {
+        expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+      });
+      // No empty assistant bubble
+      const bubbles = screen.getAllByTestId('message-bubble');
+      expect(bubbles.length).toBe(1); // Only the user message bubble
+    });
+
+    it('transforms the optimistic placeholder into a retryable error message on failure (#23)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+      vi.spyOn(chatApi, 'sendChatMessage').mockRejectedValueOnce(new Error('Network error: connection refused'));
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Check server status{enter}');
+
+      // Initially shows optimistic placeholder
+      expect(screen.getByText('Check server status')).toBeInTheDocument();
+
+      // Transforms into error message
+      expect(await screen.findByText(/Error: Network error: connection refused/)).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+
+      // Offers Retry button
+      const retryBtn = screen.getByRole('button', { name: /retry turn/i });
+      expect(retryBtn).toBeInTheDocument();
+
+      // Clicking Retry resubmits and brings back the optimistic placeholder
+      let resolveRetry!: (value: chatApi.ChatResponse) => void;
+      const retryPromise = new Promise<chatApi.ChatResponse>((resolve) => {
+        resolveRetry = resolve;
+      });
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(retryPromise);
+
+      await user.click(retryBtn);
+
+      // Placeholder is restored during retry
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+
+      act(() => {
+        resolveRetry({
+          reply: 'Server is healthy.',
+          conversation_id: 'conv-1',
+          user_message_id: 'u-retry',
+          assistant_message_id: 'a-retry',
+          needs_clarification: false,
+          quota_exceeded: false,
+        });
+      });
+
+      expect(await screen.findByText('Server is healthy.')).toBeInTheDocument();
+      expect(screen.queryByTestId('optimistic-assistant-placeholder')).not.toBeInTheDocument();
+    });
+
+    it('scrolls viewport smoothly when optimistic placeholder is appended (#23)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+      vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(new Promise(() => {}));
+
+      const scrollIntoViewMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+      render(<ChatWorkspace conversationId="conv-1" />);
+
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Smooth scroll test{enter}');
+
+      expect(screen.getByTestId('optimistic-assistant-placeholder')).toBeInTheDocument();
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    });
+  });
 });
 
 

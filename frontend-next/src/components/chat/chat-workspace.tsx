@@ -162,11 +162,37 @@ export function ChatWorkspace({
       attachments: localAttachments.length > 0 ? localAttachments : undefined,
     };
 
+    const optimisticAssistantId = `asst-opt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticAssistantMsg: ChatMessageItem = {
+      id: optimisticAssistantId,
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+      is_pending: true,
+    };
+
     if (options?.appendUserMessage !== false) {
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [...prev, userMsg, optimisticAssistantMsg]);
+    } else {
+      setMessages((prev) => [...prev, optimisticAssistantMsg]);
     }
     resetInput();
     clearClarificationPrompt();
+
+    const settleOptimisticMessage = (updates: Partial<ChatMessageItem>) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === optimisticAssistantId
+            ? {
+                ...m,
+                ...updates,
+                created_at: new Date().toISOString(),
+                is_pending: false,
+              }
+            : m
+        )
+      );
+    };
 
     const controller = new AbortController();
     const requestId =
@@ -194,13 +220,11 @@ export function ChatWorkspace({
       // Handle message quota exceeded safeguard
       if (response.quota_exceeded) {
         const asstId = response.assistant_message_id || `asst-quota-${Date.now()}`;
-        const quotaMsg: ChatMessageItem = {
+        settleOptimisticMessage({
           id: asstId,
           role: 'assistant',
           content: response.reply || "You've used all your messages for now.",
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, quotaMsg]);
+        });
         setIsGenerating(false);
         setActiveRequestId(null);
         setAbortController(null);
@@ -215,16 +239,15 @@ export function ChatWorkspace({
         );
       }
 
-      // Add assistant response
+      // Seamlessly transform optimistic placeholder into rendered assistant message
       const asstId = response.assistant_message_id || `asst-${Date.now()}`;
-      const assistantMsg: ChatMessageItem = {
+      settleOptimisticMessage({
         id: asstId,
         role: 'assistant',
         content: response.reply,
-        created_at: new Date().toISOString(),
         download_url: response.download_url,
         file_name: response.file_name,
-      };
+      });
 
       // Handle conversational clarification prompts
       if (
@@ -241,7 +264,6 @@ export function ChatWorkspace({
       }
 
       setLatestAnimatedAssistantMessageId(asstId);
-      setMessages((prev) => [...prev, assistantMsg]);
 
       if (response.conversation_id && onConversationCreated) {
         upgradedConversationIdRef.current = response.conversation_id;
@@ -250,16 +272,16 @@ export function ChatWorkspace({
     } catch (err: unknown) {
       const error = err as Error;
       if (error.name === 'AbortError') {
-        // Generation stopped by user
+        // Generation stopped by user: cleanly remove the optimistic placeholder without orphaned states
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticAssistantId));
         setIsGenerating(false);
       } else {
-        const errorMsg: ChatMessageItem = {
+        // On network or server failure, transform the optimistic bubble into a retryable error message
+        settleOptimisticMessage({
           id: `err-${Date.now()}`,
           role: 'assistant',
           content: `Error: ${error.message || 'Failed to process inquiry.'}`,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        });
         setIsGenerating(false);
       }
       setActiveRequestId(null);
@@ -289,6 +311,7 @@ export function ChatWorkspace({
       }
     });
     setLatestAnimatedAssistantMessageId(null);
+    setMessages((prev) => prev.filter((m) => !m.is_pending));
   };
 
   const handleRetry = async (assistantMessageId: string) => {

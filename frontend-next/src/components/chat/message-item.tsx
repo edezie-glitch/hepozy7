@@ -61,7 +61,7 @@ export function MessageItem({
   // Interval reference for typewriter
   React.useEffect(() => {
     let active = true;
-    if (!animateTypewriter || isUser) {
+    if (!animateTypewriter || isUser || message.is_pending) {
       queueMicrotask(() => {
         if (active) {
           setDisplayedText(message.content);
@@ -97,7 +97,7 @@ export function MessageItem({
     }, 14);
 
     return () => clearInterval(interval);
-  }, [message.content, animateTypewriter, isUser, onTypewriterComplete]);
+  }, [message.content, message.is_pending, animateTypewriter, isUser, onTypewriterComplete]);
 
   // Fast-forward / skip typewriter on click
   const handleBubbleClick = () => {
@@ -306,6 +306,28 @@ export function MessageItem({
               <div>
                 <span>{displayedText}</span>
               </div>
+            ) : message.is_pending ? (
+              <div
+                data-testid="optimistic-assistant-placeholder"
+                role="status"
+                aria-busy="true"
+                aria-live="polite"
+                className="flex flex-col gap-2 py-1"
+              >
+                <span className="sr-only">Assistant is thinking...</span>
+                <div className="flex items-center gap-1.5 py-1">
+                  <span className="h-2 w-2 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="h-2 w-2 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="h-2 w-2 rounded-full bg-primary/70 animate-bounce" />
+                </div>
+                <div
+                  data-testid="typing-shimmer-indicator"
+                  className="flex flex-col gap-2 w-full max-w-sm pt-1"
+                >
+                  <div className="h-3.5 w-4/5 rounded bg-muted-foreground/20 animate-pulse" />
+                  <div className="h-3.5 w-3/5 rounded bg-muted-foreground/20 animate-pulse" />
+                </div>
+              </div>
             ) : (
               <div className="relative">
                 <MarkdownContent content={displayedText} />
@@ -327,16 +349,17 @@ export function MessageItem({
           </div>
 
           {/* Time & Action Toolbar */}
-          <div
-            className={`flex items-center gap-2 text-xs text-muted-foreground ${
-              isUser ? 'justify-end px-1' : 'justify-start px-0 pt-1'
-            }`}
-          >
-            {formattedTime && <span className="opacity-70 text-[11px]">{formattedTime}</span>}
+          {!message.is_pending && (
+            <div
+              className={`flex items-center gap-2 text-xs text-muted-foreground ${
+                isUser ? 'justify-end px-1' : 'justify-start px-0 pt-1'
+              }`}
+            >
+              {formattedTime && <span className="opacity-70 text-[11px]">{formattedTime}</span>}
 
-            {/* Message Action Tools */}
-            {!isEditing && (
-              <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
+              {/* Message Action Tools */}
+              {!isEditing && (
+                <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
                 {/* Copy Button */}
                 <button
                   type="button"
@@ -396,6 +419,7 @@ export function MessageItem({
               </div>
             )}
           </div>
+        )}
         </div>
       </div>
     </div>
