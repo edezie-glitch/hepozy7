@@ -451,7 +451,7 @@ export function ChatWorkspace({
         <MessageScroller className="flex-1 relative min-h-0 overflow-hidden">
           <MessageScrollerViewport
             data-testid="message-stream-scroll-viewport"
-            className="flex-1 overflow-y-auto [overflow-anchor:auto] px-4 py-4 sm:px-6"
+            className="flex-1 overflow-y-auto [overflow-anchor:auto] px-4 py-4 sm:px-6 bg-surface-canvas"
           >
             <MessageScrollerContent
               data-testid="message-stream-container"
@@ -502,7 +502,7 @@ export function ChatWorkspace({
       {/* Sticky Bottom Input Bar */}
       <div
         data-testid="chat-bottom-bar"
-        className="border-t border-border/60 bg-background/95 backdrop-blur-xs px-4 py-3 sm:px-6 sm:py-4"
+        className="bg-surface-canvas px-4 py-3 sm:px-6 sm:py-4"
       >
         <div
           data-testid="chat-input-bounds"
