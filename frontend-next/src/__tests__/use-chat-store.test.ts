@@ -239,6 +239,14 @@ describe('useChatStore', () => {
       expect(useChatStore.getState().getAnimatedAssistantMessageId('persisted-456')).toBe('asst-mig');
     });
 
+    it('manages chat input focus trigger incrementing', () => {
+      expect(useChatStore.getState().inputFocusTrigger).toBe(0);
+      useChatStore.getState().triggerInputFocus();
+      expect(useChatStore.getState().inputFocusTrigger).toBe(1);
+      useChatStore.getState().triggerInputFocus();
+      expect(useChatStore.getState().inputFocusTrigger).toBe(2);
+    });
+
     it('clearAllGenerations cleanly aborts all active controllers and resets states', () => {
       const ctrl1 = new AbortController();
       const ctrl2 = new AbortController();

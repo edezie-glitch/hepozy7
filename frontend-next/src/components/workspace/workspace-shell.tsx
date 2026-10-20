@@ -29,19 +29,22 @@ export function WorkspaceShell() {
     setMobileOpen(false);
   };
 
-  const handleNewChat = () => {
-    // Instantly resets workspace message state, draft attachments, and quote context
-    useChatStore.getState().resetWorkspaceState(true);
-    setActiveConversationId(null);
-    setMobileOpen(false);
-  };
-
-  const handleStartConversation = () => {
+  const launchNewConversation = React.useCallback(() => {
     // 0ms perceived latency: generate client-side optimistic ID without blocking on server
     const optimisticId = generateOptimisticConversationId();
     useChatStore.getState().resetWorkspaceState(true);
     setActiveConversationId(optimisticId);
-  };
+    useChatStore.getState().triggerInputFocus();
+  }, []);
+
+  const handleNewChat = React.useCallback(() => {
+    launchNewConversation();
+    setMobileOpen(false);
+  }, [launchNewConversation]);
+
+  const handleStartConversation = React.useCallback(() => {
+    launchNewConversation();
+  }, [launchNewConversation]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground transition-colors">

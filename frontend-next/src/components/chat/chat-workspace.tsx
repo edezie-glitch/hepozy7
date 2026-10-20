@@ -522,6 +522,7 @@ export function ChatWorkspace({
             onSubmit={handleSubmitMessage}
             onStop={handleStop}
             disabled={Boolean(quotaExceeded)}
+            autoFocus={isOptimisticConversationId(conversationId)}
           />
         </div>
       </div>

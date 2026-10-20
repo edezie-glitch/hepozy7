@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatInput } from '@/components/chat/chat-input';
 import { useChatStore } from '@/stores/use-chat-store';
@@ -16,6 +16,7 @@ describe('ChatInput Component', () => {
       abortController: null,
       stagedAttachments: [],
       attachmentError: null,
+      inputFocusTrigger: 0,
     });
   });
 
@@ -196,6 +197,42 @@ describe('ChatInput Component', () => {
     const errorAlert = screen.getByTestId('attachment-error-alert');
     expect(errorAlert).toBeInTheDocument();
     expect(errorAlert).toHaveTextContent(/big-archive\.pdf is over 5 MB/i);
+  });
+
+  it('renders textarea with data-testid chat-input-textarea and accessible aria-label', () => {
+    render(<ChatInput onSubmit={vi.fn()} />);
+    const textarea = screen.getByTestId('chat-input-textarea');
+    expect(textarea).toBeInTheDocument();
+    expect(textarea).toHaveAttribute('aria-label', 'Chat message input');
+  });
+
+  it('autofocuses textarea on mount when autoFocus is true without disrupting pre-existing draft', () => {
+    useChatStore.setState({ inputPrompt: 'Pre-existing draft' });
+    render(<ChatInput onSubmit={vi.fn()} autoFocus />);
+    const textarea = screen.getByTestId('chat-input-textarea');
+    expect(textarea).toHaveFocus();
+    expect(textarea).toHaveValue('Pre-existing draft');
+  });
+
+  it('programmatically focuses textarea when inputFocusTrigger is triggered in useChatStore', () => {
+    render(<ChatInput onSubmit={vi.fn()} />);
+    const textarea = screen.getByTestId('chat-input-textarea');
+    expect(textarea).not.toHaveFocus();
+
+    act(() => { useChatStore.getState().triggerInputFocus(); });
+    expect(textarea).toHaveFocus();
+  });
+
+  it('preserves staged attachments when focus trigger is called', () => {
+    const testFile = new File(['test'], 'doc.pdf', { type: 'application/pdf' });
+    useChatStore.getState().stageFiles([testFile]);
+    render(<ChatInput onSubmit={vi.fn()} />);
+    const textarea = screen.getByTestId('chat-input-textarea');
+
+    act(() => { useChatStore.getState().triggerInputFocus(); });
+    expect(textarea).toHaveFocus();
+    expect(useChatStore.getState().stagedAttachments.length).toBe(1);
+    expect(screen.getByTestId('staged-preview-strip')).toBeInTheDocument();
   });
 
   it('rejects unaccepted extensions and oversized files via drag-and-drop with clear error notifications', () => {

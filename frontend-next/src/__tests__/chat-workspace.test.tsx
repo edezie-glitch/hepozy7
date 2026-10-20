@@ -1479,7 +1479,26 @@ describe('ChatWorkspace Component Integration', () => {
       expect(inputBounds).toHaveClass('mx-auto', 'max-w-3xl', 'w-full');
     });
 
-    it('coordinates clarification suggestions and input box within max-w-3xl bounds', async () => {
+  describe('Ticket 26 (#34): Autofocus Chatbox Input on New Chat Navigation & Reset', () => {
+    it('automatically places focus inside chat-input-textarea when opening an optimistic new conversation', async () => {
+      render(<ChatWorkspace conversationId="opt_12345" />);
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveFocus();
+    });
+
+    it('does not steal focus on initial mount of an existing conversation with history', async () => {
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
+        { id: 'm-1', role: 'user', content: 'Existing turn', created_at: '2026-10-20T10:00:00Z' },
+      ]);
+      render(<ChatWorkspace conversationId="conv-existing-1" />);
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).not.toHaveFocus();
+    });
+  });
+
+      it('coordinates clarification suggestions and input box within max-w-3xl bounds', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
 
       render(<ChatWorkspace conversationId="conv-clarification-width" />);

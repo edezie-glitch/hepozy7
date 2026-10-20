@@ -50,6 +50,7 @@ describe('WorkspaceShell Component', () => {
       generationStates: {},
       conversationMessages: {},
       animatedAssistantMessageIds: {},
+      inputFocusTrigger: 0,
     });
 
     const mockSupabase = {
@@ -124,7 +125,7 @@ describe('WorkspaceShell Component', () => {
     expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
   });
 
-  it('resets active conversation when clicking New Chat', async () => {
+  it('resets active conversation and focuses chat input when clicking New Chat', async () => {
     const user = userEvent.setup();
     renderWithProviders(<WorkspaceShell />);
 
@@ -135,7 +136,8 @@ describe('WorkspaceShell Component', () => {
     // Click New Chat
     await user.click(screen.getByRole('button', { name: /new chat/i }));
 
-    expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+    expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-input-textarea')).toHaveFocus();
     expect(screen.queryByTestId('topbar-conversation-title')).not.toBeInTheDocument();
   });
 
@@ -152,9 +154,10 @@ describe('WorkspaceShell Component', () => {
     // Click Start Conversation
     await user.click(startBtn);
 
-    // Instantly transitions to active chat input
+    // Instantly transitions to active chat input and focuses textarea
     expect(screen.getByPlaceholderText(/ask hepozy assistant/i)).toBeInTheDocument();
     expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-input-textarea')).toHaveFocus();
 
     // Zero redundant history calls
     expect(historySpy).not.toHaveBeenCalled();
@@ -183,8 +186,9 @@ describe('WorkspaceShell Component', () => {
     // Click New Chat
     await user.click(screen.getByRole('button', { name: /new chat/i }));
 
-    // Resets to home shell without awaiting network
-    expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+    // Resets to empty conversation and focuses textarea without awaiting network
+    expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-input-textarea')).toHaveFocus();
 
     // Workspace state in store is completely reset
     expect(useChatStore.getState().stagedAttachments).toEqual([]);
@@ -386,7 +390,7 @@ describe('WorkspaceShell Component', () => {
       });
     });
 
-    it('clicking New Chat while an inquiry is generating in active conversation transitions cleanly to welcome canvas', async () => {
+    it('clicking New Chat while an inquiry is generating in active conversation transitions cleanly to ready-to-type chat with focused input', async () => {
       const user = userEvent.setup();
       vi.spyOn(chatApi, 'sendChatMessage').mockReturnValueOnce(new Promise(() => {}));
 
@@ -403,17 +407,77 @@ describe('WorkspaceShell Component', () => {
       // Click New Chat
       await user.click(screen.getByRole('button', { name: /new chat/i }));
 
-      // Cleanly transitions to welcome canvas
-      expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
-
-      // Click Start Conversation to launch new optimistic chat
-      await user.click(screen.getByRole('button', { name: /start conversation/i }));
-
-      // New conversation has enabled input and Send button
-      const newTextarea = await screen.findByPlaceholderText(/ask hepozy assistant/i);
+      // Cleanly transitions to ready-to-type new chat with focused input
+      expect(screen.getByTestId('empty-conversation-card')).toBeInTheDocument();
+      const newTextarea = await screen.findByTestId('chat-input-textarea');
       expect(newTextarea).toBeEnabled();
+      expect(newTextarea).toHaveFocus();
       expect(screen.queryByRole('button', { name: /stop generation/i })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Ticket 26 (#34): Autofocus Chatbox Input on New Chat Navigation & Reset', () => {
+    it('clicking New Chat in the expanded desktop sidebar immediately places focus inside chat-input-textarea', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<WorkspaceShell />);
+
+      expect(screen.getByRole('heading', { name: /intelligence that works with your documents/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /new chat/i }));
+
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveFocus();
+    });
+
+    it('clicking New Chat in the collapsed sidebar icon rail immediately places focus inside chat-input-textarea', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<WorkspaceShell />);
+
+      const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+      await user.click(collapseBtn);
+
+      const railNewChatBtn = screen.getByRole('button', { name: /new chat/i });
+      await user.click(railNewChatBtn);
+
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveFocus();
+    });
+
+    it('clicking New Chat inside mobile drawer panel closes drawer and focuses chat-input-textarea', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<WorkspaceShell />);
+
+      const menuToggle = screen.getByTestId('mobile-drawer-toggle');
+      await user.click(menuToggle);
+
+      const drawerPanel = screen.getByTestId('mobile-drawer-panel');
+      expect(drawerPanel).toBeInTheDocument();
+
+      const drawerNewChatBtn = screen.getAllByRole('button', { name: /new chat/i })[1];
+      await user.click(drawerNewChatBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('mobile-drawer-panel')).not.toBeInTheDocument();
+      });
+
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveFocus();
+    });
+
+    it('allows user to immediately type message after New Chat without clicking textarea', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<WorkspaceShell />);
+
+      await user.click(screen.getByRole('button', { name: /new chat/i }));
+      const textarea = await screen.findByTestId('chat-input-textarea');
+      expect(textarea).toHaveFocus();
+
+      await user.keyboard('Direct query prompt without clicking');
+      expect(textarea).toHaveValue('Direct query prompt without clicking');
     });
   });
 });

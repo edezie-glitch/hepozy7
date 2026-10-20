@@ -22,6 +22,7 @@ export interface ChatInputProps {
   className?: string;
   conversationId?: string | null;
   isGenerating?: boolean;
+  autoFocus?: boolean;
 }
 
 export function ChatInput({
@@ -32,6 +33,7 @@ export function ChatInput({
   className = '',
   conversationId,
   isGenerating: propIsGenerating,
+  autoFocus = false,
 }: ChatInputProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -53,6 +55,35 @@ export function ChatInput({
   const removeStagedAttachment = useChatStore((state) => state.removeStagedAttachment);
   const attachmentError = useChatStore((state) => state.attachmentError);
   const setAttachmentError = useChatStore((state) => state.setAttachmentError);
+  const inputFocusTrigger = useChatStore((state) => state.inputFocusTrigger);
+  const prevTriggerRef = React.useRef(0);
+
+  const focusTextarea = React.useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus({ preventScroll: true });
+    const len = textarea.value.length;
+    if (len > 0) {
+      try {
+        textarea.setSelectionRange(len, len);
+      } catch {
+        // Ignore selection error in headless tests
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (autoFocus) {
+      focusTextarea();
+    }
+  }, [autoFocus, focusTextarea]);
+
+  React.useEffect(() => {
+    if (inputFocusTrigger > 0 && inputFocusTrigger !== prevTriggerRef.current) {
+      prevTriggerRef.current = inputFocusTrigger;
+      focusTextarea();
+    }
+  }, [inputFocusTrigger, focusTextarea]);
 
   // Auto-resize textarea as text grows
   const adjustHeight = React.useCallback(() => {
@@ -258,6 +289,8 @@ export function ChatInput({
 
         <textarea
           ref={textareaRef}
+          data-testid="chat-input-textarea"
+          aria-label="Chat message input"
           value={inputPrompt}
           onChange={handleChange}
           onKeyDown={handleKeyDown}

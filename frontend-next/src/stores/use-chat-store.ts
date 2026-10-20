@@ -48,6 +48,8 @@ export interface ChatStoreState {
   // Conversational Clarification & Quota Safeguards
   clarificationPrompt: ClarificationPromptState | null;
   quotaExceeded: QuotaExceededState | null;
+  inputFocusTrigger: number;
+  triggerInputFocus: () => void;
 
   setInputDraft: (draft: string) => void;
   setInputPrompt: (prompt: string) => void;
@@ -124,6 +126,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   attachmentError: null,
   clarificationPrompt: null,
   quotaExceeded: null,
+  inputFocusTrigger: 0,
+  triggerInputFocus: () => set((state) => ({ inputFocusTrigger: state.inputFocusTrigger + 1 })),
 
   setInputDraft: (draft) => set({ inputDraft: draft, inputPrompt: draft }),
   setInputPrompt: (prompt) => set({ inputDraft: prompt, inputPrompt: prompt }),
