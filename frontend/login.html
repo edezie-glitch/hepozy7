@@ -1,0 +1,155 @@
+<!DOCTYPE html><html lang="en"><head>  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ec5b08">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="hepozy">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=4">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v=4">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png?v=4">
+<link rel="shortcut icon" href="/static/favicon.ico?v=4">
+<link rel="manifest" href="/static/site.webmanifest?v=4"><title>Hepozy Log in</title><meta name="description" content="Hepozy is an AI assistant that answers questions, writes PDF, Word and Excel files, and draws graphs and diagrams. Log in to continue."><link rel="canonical" href="https://hepozy.com/login.html"><meta property="og:site_name" content="Hepozy"><meta property="og:type" content="website"><meta property="og:title" content="Hepozy Log in"><meta property="og:description" content="Hepozy is an AI assistant that answers questions, writes PDF, Word and Excel files, and draws graphs and diagrams. Log in to continue."><meta property="og:url" content="https://hepozy.com/login.html"><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Hepozy","alternateName":"Hepozy AI","url":"https://hepozy.com/"}</script><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"><style>*,*:before,*:after{box-sizing:border-box;margin:0;padding:0}html{--bg: #1a1a1a;--surface: #242424;--input-bg: #2e2e2e;--input-f: #363636;--orange: #e8600a;--orange-h: #d05508;--text: #efefef;--muted: #777;--muted2: #444;--error: #e05555;--radius: 9px}body{min-height:100vh;background:var(--bg);font-family:Sora,sans-serif;color:var(--text);overflow-x:hidden}.split{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}.stage{background:var(--surface);display:flex;align-items:flex-end;justify-content:center;padding:0 24px}.stage .buddies.block{display:block;height:min(62vh,440px);margin:0}.pane{display:flex;align-items:center;justify-content:center;padding:32px 20px}@media (max-width:860px){.split{display:block}.stage{height:calc(210px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 16px 0}body:has(input:focus) .topnav{display:none}.stage .buddies.block{height:180px}.pane{padding:24px 20px 40px}}.card{width:100%;max-width:400px;background:var(--bg);border-radius:16px;padding:40px 36px 32px}    .card-logo {
+      display: block; width: 40px; height: 40px;
+      object-fit: contain; margin-bottom: 22px;
+    }.card h1{font-size:21px;font-weight:600;margin-bottom:5px;letter-spacing:-.3px}.card .sub{font-size:13px;color:var(--muted);margin-bottom:28px}.error-msg{display:none;background:#e055551a;color:var(--error);font-size:12.5px;padding:9px 12px;border-radius:var(--radius);margin-bottom:16px}.error-msg.show{display:block}.ok-msg{display:none;background:#3fb9501a;color:#4cc26b;font-size:12.5px;padding:9px 12px;border-radius:var(--radius);margin-bottom:16px}.ok-msg.show{display:block}.field{margin-bottom:16px}label{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}input{width:100%;background:var(--input-bg);border:none;outline:none;border-radius:var(--radius);padding:11px 13px;font-size:13.5px;font-family:Sora,sans-serif;color:var(--text);transition:background .14s}input:focus{background:var(--input-f)}input::placeholder{color:var(--muted2)}.btn{width:100%;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius);font-size:13.5px;font-weight:600;font-family:Sora,sans-serif;cursor:pointer;margin-top:6px;transition:background .14s;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px}.btn:disabled{opacity:.6;cursor:not-allowed}.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}@keyframes spin{to{transform:rotate(360deg)}}.footer-link{margin-top:20px;font-size:12.5px;color:var(--muted);text-align:center}.footer-link a{color:var(--orange);text-decoration:none;font-weight:500}.footer-link a:hover{text-decoration:underline}    .topnav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+      background: var(--bg); border-top: 1px solid var(--input-bg);
+    }
+    .topnav-brand { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; letter-spacing: -0.2px; }
+    .topnav nav { display: flex; gap: 6px; }
+    .topnav-btn {
+      background: none; border: none; color: var(--muted);
+      font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 500;
+      padding: 8px 12px;   cursor: pointer;
+      transition: background 0.14s, color 0.14s;
+    }
+
+
+    .modal-bd { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: block; padding: 0; }
+    .modal-bd[hidden] { display: none; }
+    .modal-box {
+      width: 100%; height: 100%; overflow: auto; background: var(--bg);
+      padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(32px + env(safe-area-inset-bottom, 0px));
+    }
+    .modal-inner { max-width: 720px; margin: 0 auto; }
+    .modal-box h2 { font-size: 28px; font-weight: 600; margin-bottom: 24px; letter-spacing: -0.4px; }
+    .modal-x {
+      position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 20px; z-index: 101;
+      width: 40px; height: 40px; background: var(--input-bg); border: none; border-radius: 50%;
+      color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1;
+    }
+
+    .modal-box details { border-top: 1px solid var(--input-bg); padding: 16px 0; }
+    .modal-box summary { cursor: pointer; font-size: 15px; font-weight: 500; }
+    .modal-box details p, .modal-box .dev-p { font-size: 14px; color: var(--muted); margin-top: 10px; line-height: 1.65; }</style></head><body>  <header class="topnav">
+    <a class="topnav-brand" href="login.html">Hepozy</a>
+    <nav>
+      <button type="button" class="topnav-btn" data-modal="faqModal">FAQ</button>
+      <button type="button" class="topnav-btn" data-modal="devModal">Developers</button>
+    </nav>
+  </header>
+
+  <div class="modal-bd" id="faqModal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="faqTitle">
+      <button type="button" class="modal-x" aria-label="Close">&times;</button>
+      <div class="modal-inner">
+        <h2 id="faqTitle">FAQs</h2>
+        <details>
+          <summary>Why do I have to verify my email?</summary>
+          <p data-nosnippet>After creating an account you are sent to a verification step. You can't log in until your email is confirmed.</p>
+        </details>
+        <details>
+          <summary>What are the password requirements?</summary>
+          <p>At least 20 characters. Both password fields must match.</p>
+        </details>
+        <details>
+          <summary>Why can't I log in?</summary>
+          <p>Log in with your username, not your email. If you just registered, finish email verification first.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bd" id="devModal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+      <button type="button" class="modal-x" aria-label="Close">&times;</button>
+      <div class="modal-inner">
+        <h2 id="devTitle">Developers</h2>
+        <p class="dev-p">Edezie Agaled<br>Zeius Aben</p>
+      </div>
+    </div>
+  </div><main class="split"><aside class="stage" data-buddies></aside><section class="pane"><div class="card"><img class="card-logo" src="hepozy.jpg" alt="Hepozy" width="40" height="40" onerror="this.style.visibility='hidden'"><h1>Welcome back</h1><p class="sub">Log in to your account to continue.</p><div class="error-msg" id="errorMsg"></div><div class="ok-msg" id="okMsg"></div><form id="form"><div class="field"><label>Username</label> <input type="text" id="username" placeholder="Enter your username" required autocomplete="username"></div><div class="field"><label>Password</label> <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password"></div><div class="field" id="captchaField" style="display:none"><div id="captchaBox"></div></div><button type="submit" class="btn" id="btn"> <span id="btnText">Log in</span> <span class="spinner" id="spinner"></span> </button></form><div class="footer-link">No account yet? <a href="register.html">Create account</a></div></div></section></main><script>(function () {
+  /* The email-confirmation link lands here as login.html#access_token=...&type=signup.
+     The page does not use those tokens (people log in with username + password), so remove them
+     from the address bar and browser history at once, and show a short message instead. */
+  var h = location.hash.replace(/^#/, "");
+  if (!h) return;
+  var p = new URLSearchParams(h);
+  if (!p.has("access_token") && !p.has("error") && !p.has("error_description")) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  var okEl = document.getElementById("okMsg"), errEl = document.getElementById("errorMsg");
+  if (p.get("error") || p.get("error_description")) {
+    errEl.textContent = p.get("error_description") || "This confirmation link is not valid.";
+    errEl.classList.add("show");
+  } else {
+    okEl.textContent = "Email confirmed. Log in to continue.";
+    okEl.classList.add("show");
+  }
+})();</script><script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script><script>/* ADDED: Cloudflare Turnstile captcha. Hidden until the server asks for it (after 3 failed logins).
+   The Site Key is public; the Secret Key lives only in the server's .env. */
+var TS_SITE_KEY = "0x4AAAAAAFfCaR5aBh3LzfVo", /* your real Site Key only, no test keys */
+  tsId = null;
+function capNote(code) {
+  var el = document.getElementById("captchaMsg");
+  if (!el) {
+    el = document.createElement("div"); el.id = "captchaMsg";
+    el.style.cssText = "font-size:12px;line-height:1.5;color:#e08a8a;margin-top:8px;";
+    var box = document.getElementById("captchaBox"); if (box && box.parentNode) box.parentNode.appendChild(el);
+  }
+  var c = String(code || ""), local = (location.hostname === "localhost" || location.hostname === "127.0.0.1"), t = "";
+  if (c) {
+    if (c === "expired") t = "The check expired. Tap it again.";
+    else if (c === "noscript") t = "The captcha script was blocked. Turn off ad blockers or privacy shields for this site and reload.";
+    else if (c === "noframe") t = "The captcha box did not load. An ad blocker, privacy extension or VPN may be blocking challenges.cloudflare.com.";
+    else if (/^110200/.test(c) || local) t = "This site address is not allowed for this captcha key" + (local ? " (you are on " + location.hostname + ": the real key works on hepozy.com)." : ". Add it under the widget's Hostname Management in Cloudflare.");
+    else if (/^(400020|1100|1101)/.test(c)) t = "The Site Key in this page is wrong or belongs to another widget. Copy it again from Cloudflare.";
+    else if (/^(300|600)/.test(c)) t = "The check could not finish. Turn off VPN or ad blockers and retry.";
+    else if (/^2001/.test(c)) t = "Your device clock is wrong. Fix the date and time, then reload.";
+    else t = "The captcha could not load.";
+    t += " [code " + c + "]";
+  }
+  el.textContent = t;
+}
+function capMount() {
+  if (tsId !== null || !window.turnstile || !document.getElementById("captchaBox")) return;
+  tsId = turnstile.render("#captchaBox", { sitekey: TS_SITE_KEY, theme: "dark",
+    "error-callback": function (code) { capNote(code || "unknown"); return true; },
+    "expired-callback": function () { capNote("expired"); },
+    callback: function () { capNote(""); } });
+  setTimeout(function () { if (tsId !== null && !document.querySelector("#captchaBox iframe")) capNote("noframe"); }, 8000);
+}
+function capToken() { return (window.turnstile && tsId !== null) ? (turnstile.getResponse(tsId) || "") : ""; }
+function capReset() { if (window.turnstile && tsId !== null) turnstile.reset(tsId); }
+function capShow() {
+  document.getElementById("captchaField").style.display = "block";
+  var n = 0; (function wait() { capMount(); if (tsId === null && n++ < 80) setTimeout(wait, 250); else if (tsId === null) capNote("noscript"); })();
+}
+</script><script>    (() => {
+      let last = null;
+      const close = m => { m.hidden = true; if (last) last.focus(); };
+      document.querySelectorAll('[data-modal]').forEach(b => b.addEventListener('click', () => {
+        last = b;
+        const m = document.getElementById(b.dataset.modal);
+        m.hidden = false;
+        m.querySelector('.modal-x').focus();
+      }));
+      document.querySelectorAll('.modal-bd').forEach(m => {
+        m.querySelector('.modal-x').addEventListener('click', () => close(m));
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-bd:not([hidden])').forEach(close);
+      });
+    })();const fmt=d=>Array.isArray(d)?d.map(x=>String(x&&x.msg||x).replace(/^Value error, /,"")).join(". "):typeof d==="string"?d:"";const API=[" "].includes(location.hostname)?"http://localhost:8000":"";localStorage.getItem("hepozy_token")&&(window.location.href="home.html"),document.getElementById("form").addEventListener("submit",async d=>{d.preventDefault();const e=document.getElementById("errorMsg"),n=document.getElementById("btn"),o=document.getElementById("btnText"),s=document.getElementById("spinner");e.classList.remove("show"),n.disabled=!0,o.style.display="none",s.style.display="inline-block";const c=document.getElementById("username").value.trim(),i=document.getElementById("password").value,a=()=>{n.disabled=!1,o.style.display="inline",s.style.display="none"};try{const l=await fetch(`${API}/auth/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:c,password:i,captcha_token:capToken()||null})}),t=await l.json();if(!l.ok){e.textContent=(t.detail==="captcha_required"?(capShow(),"Please complete the captcha, then log in again."):fmt(t.detail))||"Login failed.",e.classList.add("show"),a(),capReset();return}localStorage.setItem("hepozy_token",t.token),t.refresh_token&&localStorage.setItem("hepozy_refresh",t.refresh_token),localStorage.setItem("hepozy_username",t.username),localStorage.setItem("hepozy_user_id",t.user_id),window.location.href="home.html"}catch{e.textContent="Unable to connect to server.",e.classList.add("show"),a()}});</script>   <script src="/static/buddies.js?v=2"></script><script src="/pwa.js?v=3"></script></body></html>
