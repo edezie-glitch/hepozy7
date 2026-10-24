@@ -47,5 +47,9 @@
  https://openalex.org/
  https://www.poetryfoundation.org/
  https://www.gutenberg.org/
+<<<<<<< HEAD
  https://standardebooks.org/
   
+=======
+ https://standardebooks.org/
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91

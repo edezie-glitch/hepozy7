@@ -1,0 +1,30 @@
+# Environment variables
+.env
+.env.local
+*.env
+
+# Python cache and virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.ruff_cache/
+
+# Generated files
+generated_files/
+
+# Node & Frontend
+node_modules/
+.next/
+/frontend-next/.next/
+/frontend-next/node_modules/
+dist/
+build/
+coverage/
+
+# OS artifacts
+Thumbs.db
+desktop.ini
+.DS_Store

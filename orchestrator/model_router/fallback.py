@@ -32,6 +32,7 @@ _DEFAULT_TIMEOUT = {"groq": 30.0, "gemini": 60.0}
 _RETRY_STATUS = {500, 502, 503, 504}   # busy or broken for a moment: same model is worth another try
 _BACKOFF = (1.0, 2.5)                  # seconds to wait before retry 2 and retry 3
 
+<<<<<<< HEAD
 # ADDED: shorter wait per model. A healthy model answers in a few seconds; waiting 60 s on a stuck one
 # (your log: gemini-flash-latest timed out after ~60 s, then flash-lite answered in 2 s) made every
 # such request take over a minute. Change without editing code: GEMINI_TIMEOUT / GROQ_TIMEOUT in .env.
@@ -57,6 +58,8 @@ def _mark_down(prov: str, mod: str, why: str) -> None:
         print(f"[fallback] {prov}/{mod} marked down for {BREAKER_SECONDS:.0f}s ({why})")
 
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 USER_MESSAGE = "Connection lost. Please try again in a moment."
 
 
@@ -142,6 +145,7 @@ def complete_with_fallback(
     failures = []
 
     for prov, mod in _candidates(provider, model):
+<<<<<<< HEAD
         # ADDED: skip a model that just failed (circuit breaker), unless every other model is down too
         if _is_down(prov, mod) and any(
             not _is_down(p, m) for p, m in _candidates(provider, model) if (p, m) != (prov, mod)
@@ -149,6 +153,8 @@ def complete_with_fallback(
             failures.append(f"{prov}/{mod}: recently failing, skipped")
             continue
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
         kwargs: dict = {}
         held = 0   # Groq tokens reserved for this candidate
         if prov == "groq":
@@ -186,7 +192,10 @@ def complete_with_fallback(
                 return {**info, "provider": prov, "model": mod}
 
             last_info = info
+<<<<<<< HEAD
             _mark_down(prov, mod, info)   # ADDED: remember that this model is struggling
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
             print(f"[fallback] {prov}/{mod} attempt {attempt + 1}: {info}")
             if outcome == "next" or attempt == 2:
                 failures.append(f"{prov}/{mod}: {info}")

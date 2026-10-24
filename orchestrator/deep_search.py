@@ -176,11 +176,16 @@ def deep_verify(q: str, vector: list[float], candidates: list[dict]) -> list[dic
                     c = {**c, "snippet": (LABEL[intent] + " · " if intent in LABEL else "") + snip}
                 kept.append({**c, "_cov": cov})
     kept.sort(key=lambda d: -d["_cov"])
+<<<<<<< HEAD
     if vector is None:  # no query vector: the keyword checks already decided; skip the embedding calls (faster, cheaper)
         vecs = []
     else:
         with ThreadPoolExecutor(max_workers=EMBED_MAX) as pool:
             vecs = list(pool.map(lambda d: embed_text(d["snippet"][:1500]) if d["snippet"] else None, kept[:EMBED_MAX]))
+=======
+    with ThreadPoolExecutor(max_workers=EMBED_MAX) as pool:
+        vecs = list(pool.map(lambda d: embed_text(d["snippet"][:1500]) if d["snippet"] else None, kept[:EMBED_MAX]))
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     out = []
     for i, d in enumerate(kept):
         v = vecs[i] if i < len(vecs) else None
@@ -191,6 +196,7 @@ def deep_verify(q: str, vector: list[float], candidates: list[dict]) -> list[dic
     out.sort(key=lambda d: (-d.get("_central", 0), -d["_cov"], -d["_sim"]))
     print(f"[deep] opened {len(pages)}/{len(cands)} pages, verified {len(out)}, {time.time() - t0:.1f}s, "
           f"topic={topic}, sims={[round(d['_sim'], 2) for d in out[:5]]}")
+<<<<<<< HEAD
     return out
 
 
@@ -279,3 +285,6 @@ def deep_check_one(q: str, c: dict):
             return None
         c = {**c, "snippet": (LABEL[intent] + " · " if intent in LABEL else "") + snip}
     return {**c, "_cov": cov, "_central": 0.0}
+=======
+    return out
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91

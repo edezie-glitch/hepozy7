@@ -401,8 +401,13 @@ def doi_of(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+<<<<<<< HEAD
 def source_plan(q: str):
     """(intent, topic, [functions]) for the All tab: which sources to ask for this kind of query."""
+=======
+def discover_text(q: str) -> list[dict]:
+    """Web pages and papers for the All tab, fetched at the same time."""
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     from intent import parse_intent
     intent, topic = parse_intent(q)
     if intent == "review":
@@ -428,12 +433,15 @@ def source_plan(q: str):
     else:
         # an ordinary topic (a person, a place, a thing, an event): encyclopedias and the seed sites, NOT papers
         fns = [lambda: wikipedia(q, 8)] + [(lambda s=s: site_search(*s, q)) for s in SITE_SEARCH]
+<<<<<<< HEAD
     return intent, topic, fns
 
 
 def discover_text(q: str) -> list[dict]:
     """Web pages and papers for the All tab, fetched at the same time."""
     intent, topic, fns = source_plan(q)
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     groups = _gather(fns)
     # take results turn by turn from each source, so one source cannot fill the whole list
     out, i = [], 0
@@ -445,6 +453,7 @@ def discover_text(q: str) -> list[dict]:
     return out
 
 
+<<<<<<< HEAD
 def discover_stream(q: str, on_group, deadline: float = DEADLINE) -> None:
     """Same sources as discover_text, but each source's results are handed to on_group(list) THE MOMENT
     that source answers, so the page checks can start while slower sources are still running."""
@@ -464,6 +473,8 @@ def discover_stream(q: str, on_group, deadline: float = DEADLINE) -> None:
         pass  # deadline reached: slower sources are skipped
     ex.shutdown(wait=False)
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 
 def gdelt_news(q: str, limit: int = 15) -> list[dict]:
     """News articles from the GDELT DOC API (free, no key). It gives title, link, domain, date and

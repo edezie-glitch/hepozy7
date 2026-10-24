@@ -6,7 +6,11 @@ from collections import defaultdict, deque
 import httpx
 from dotenv import load_dotenv
 from email_validator import EmailNotValidError, validate_email
+<<<<<<< HEAD
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+=======
+from fastapi import APIRouter, Header, HTTPException, Request
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 from pydantic import BaseModel, EmailStr, Field
 from supabase import ClientOptions, create_client
 try:
@@ -23,10 +27,13 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 
+<<<<<<< HEAD
 # CHANGED: name of the Supabase Storage bucket that holds uploaded files.
 # It was used in delete_account but never defined. Set UPLOAD_BUCKET in .env to your real bucket name.
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "uploads")
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 # Service-role client: tables and admin calls ONLY. Never sign users in on it.
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 # Anon client: sign-up, sign-in and token checks ONLY. Never use it for tables.
@@ -78,7 +85,11 @@ def _check(key: str, limit: int, window: int) -> None:
             wait = int(window - (now - q[0])) + 1
             raise HTTPException(
                 status_code=429,
+<<<<<<< HEAD
                 detail=f"Too many attempts. Try again in {max(1, wait // 10)} second(s).",
+=======
+                detail=f"Too many attempts. Try again in {max(1, wait // 60)} minute(s).",
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
                 headers={"Retry-After": str(wait)},
             )
 
@@ -92,6 +103,7 @@ def _record(key: str) -> None:
                 _hits.pop(k, None)
 
 
+<<<<<<< HEAD
 # ADDED: captcha (Cloudflare Turnstile or hCaptcha). Off until CAPTCHA_SECRET is set in .env, so nothing
 # breaks before the keys and the page widget are in place.
 #   CAPTCHA_PROVIDER = turnstile (default) or hcaptcha
@@ -131,17 +143,25 @@ def _fail_count(key: str, window: int = 300) -> int:
         return sum(1 for t in _hits.get(key, ()) if now - t <= window)
 
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 class SignupRequest(BaseModel):
     email: EmailStr
     username: str = Field(pattern=r"^[A-Za-z0-9_]{3,20}$")
     password: str = Field(min_length=20, max_length=72)
+<<<<<<< HEAD
     captcha_token: str | None = Field(default=None, max_length=4096)  # ADDED
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
+<<<<<<< HEAD
     captcha_token: str | None = Field(default=None, max_length=4096)  # ADDED
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 
 
 class AuthResponse(BaseModel):
@@ -213,7 +233,11 @@ def _account_state(user_id: str) -> str:
     except Exception as e:
         if getattr(e, "status", None) == 404 or getattr(e, "code", "") == "user_not_found":
             return "gone"
+<<<<<<< HEAD
         print(f"[auth] account state check failed: {type(e).__name__} status={getattr(e,'status',None)} code={getattr(e,'code',None)} {e}")
+=======
+        print(f"[auth] could not check account state: {type(e).__name__}")
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
         return "unknown"
 
 
@@ -239,10 +263,13 @@ def signup(req: SignupRequest, request: Request):
     _record(ip_key)
     _record(email_key)
 
+<<<<<<< HEAD
     # ADDED: a human check before anything else costs us work (no database calls, no email lookups)
     if _captcha_on() and not _verify_captcha(req.captcha_token, ip):
         raise HTTPException(status_code=400, detail="Please complete the captcha and try again.")
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     # ADDED: the address must be able to receive mail (the domain must exist and accept it).
     # Only the confirmation link below proves the mailbox itself exists and belongs to this person.
     try:
@@ -252,6 +279,7 @@ def signup(req: SignupRequest, request: Request):
 
     # ADDED: check first whether this email already has an account, and say so clearly
     email_lc = req.email.strip().lower()
+<<<<<<< HEAD
 
     # ADDED: emails the owner has blocked cannot sign up again (add them to the banned_emails table)
     blocked = (
@@ -264,6 +292,8 @@ def signup(req: SignupRequest, request: Request):
     if blocked.data:
         raise HTTPException(status_code=403, detail="This email cannot be used to create an account.")
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     taken = (
         supabase.table("profiles")
         .select("id")
@@ -274,6 +304,7 @@ def signup(req: SignupRequest, request: Request):
     if taken.data:
         state = _account_state(taken.data[0]["id"])
         if state == "gone":
+<<<<<<< HEAD
             supabase.table("profiles").delete().eq("id", taken.data[0]["id"]).execute()
         elif state == "pending":
             raise HTTPException(status_code=400, detail="This email is already registered but not verified yet. Check your inbox for the verification link.")
@@ -281,6 +312,20 @@ def signup(req: SignupRequest, request: Request):
             raise HTTPException(status_code=503, detail="Could not check this account right now. Try again.")
         else:
             raise HTTPException(status_code=400, detail="An account with this email already exists. Log in instead.")
+=======
+            # a leftover profile whose sign-in account was deleted: clear it so this person can register
+            supabase.table("profiles").delete().eq("id", taken.data[0]["id"]).execute()
+        elif state == "pending":
+            raise HTTPException(
+                status_code=400,
+                detail="This email is already registered but not verified yet. Check your inbox for the verification link.",
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="An account with this email already exists. Log in instead.",
+            )
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 
     existing = (
         supabase.table("profiles")
@@ -298,7 +343,11 @@ def signup(req: SignupRequest, request: Request):
                 "password": req.password,
                 "options": {
                     "data": {"username": req.username},
+<<<<<<< HEAD
                     "email_redirect_to": "https://localhost:8000/login.html",
+=======
+                    "email_redirect_to": "http://localhost:8000/login.html",
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
                 },
             }
         )
@@ -352,12 +401,15 @@ def login(req: LoginRequest, request: Request):
     _check(ip_key, 20, 300)    # 20 failed logins per 5 minutes from one address
     _check(user_key, 5, 300)   # 5 failed logins per 5 minutes for one username from one address
 
+<<<<<<< HEAD
     # ADDED: after 3 failed logins in 5 minutes the captcha is required. The page sees the code
     # "captcha_required" and shows the widget; normal logins never see a captcha.
     if _captcha_on() and _fail_count(user_key) >= 3:
         if not _verify_captcha(req.captcha_token, ip):
             raise HTTPException(status_code=403, detail="captcha_required")
 
+=======
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
     try:
         email = resolve_username_to_email(req.username)
     except HTTPException:
@@ -408,6 +460,7 @@ def refresh(req: RefreshRequest, request: Request):
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
     if result.session is None:
         raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+<<<<<<< HEAD
     return RefreshResponse(token=result.session.access_token, refresh_token=result.session.refresh_token)
 
 
@@ -483,3 +536,6 @@ def delete_account(req: DeleteAccountRequest, request: Request, uid: str = Depen
 
     _forget_tokens(uid)
     return {"message": "Account deleted."}
+=======
+    return RefreshResponse(token=result.session.access_token, refresh_token=result.session.refresh_token)
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91

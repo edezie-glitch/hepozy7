@@ -7,7 +7,11 @@
   var topbar = document.querySelector(".topbar");
   if (!topbar) return;
 
+<<<<<<< HEAD
   var POLL_MS = 1500, POLL_MAX_MS = 180000, MAX_RESULTS = 50;
+=======
+  var POLL_MS = 4000, POLL_MAX_MS = 180000, MAX_RESULTS = 50;
+>>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
   var tab = "all", runId = 0, timer = null, ctrl = null;
 
   function el(tag, cls, text) {
