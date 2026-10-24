@@ -20,12 +20,13 @@ Hepozy is an AI workspace assistant built with **FastAPI**, **Supabase**, and mu
 
 ```
 hepozy7/
-├── frontend/                     # Web client UI
+├── frontend/                     # Legacy static web client UI
 │   ├── home.html                 # Main chat workspace & history sidebar
 │   ├── home.js                   # Client logic & API communication
 │   ├── login.html                # Authentication screens (Login)
 │   ├── register.html             # Registration screen
 │   └── verifypend.html           # Email verification notice
+├── frontend-next/                # Modern Next.js frontend application
 ├── orchestrator/                 # FastAPI backend application
 │   ├── main.py                   # Server entry point, endpoints, and chat pipeline
 │   ├── auth.py                   # Supabase authentication & rate limiter
@@ -51,6 +52,7 @@ hepozy7/
 
 ### 1. Prerequisites
 - **Python 3.10+** (or **[uv](https://docs.astral.sh/uv/)**)
+- **Node.js 18+** & **[pnpm](https://pnpm.io/)** (for `frontend-next`)
 - A **[Supabase](https://supabase.com)** project
 - API keys from **[Groq Console](https://console.groq.com)** and **[Google AI Studio](https://aistudio.google.com)**
 
@@ -129,7 +131,21 @@ pip install -r orchestrator/requirements.txt
 
 ### 5. Running the Application
 
-#### Using `uv` (Recommended)
+#### Local Development (Full Stack - Backend + Frontend)
+
+Run both the FastAPI backend and Next.js frontend concurrently in a single terminal:
+
+```bash
+npx concurrently -n "backend,frontend" -c "blue,green" "uv run uvicorn main:app --app-dir orchestrator --reload --port 8000" "pnpm -C frontend-next dev"
+```
+
+- **Next.js Frontend**: [http://localhost:3000](http://localhost:3000)
+- **FastAPI Backend**: [http://localhost:8000](http://localhost:8000)
+- **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs) *(when `ENABLE_DOCS=1`)*
+
+#### Running Backend Only
+
+##### Using `uv` (Recommended)
 `uv run` automatically picks up the virtual environment:
 
 ```bash
@@ -144,7 +160,7 @@ python -m uvicorn orchestrator.main:app --reload --port 8000
 ```
 </details>
 
-- **Web App**: [http://localhost:8000](http://localhost:8000) *(redirects to login)*
+- **Legacy Web App**: [http://localhost:8000](http://localhost:8000) *(redirects to login)*
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs) *(when `ENABLE_DOCS=1`)*
 
 ---
