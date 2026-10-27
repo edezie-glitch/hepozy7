@@ -131,7 +131,7 @@ export function ConversationSidebar({
                   aria-label="Expand sidebar"
                   aria-expanded={false}
                   data-testid="sidebar-toggle-button"
-                  className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 hover:bg-accent hover:border-primary/40 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                  className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 hover:bg-accent hover:border-primary/40 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
                 >
                   {/* Official Hepozy Logo Image at rest */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -226,7 +226,7 @@ export function ConversationSidebar({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="h-8 pl-8 text-xs bg-muted/40 border-border/80 focus-visible:ring-1"
+              className="h-8 pl-8 text-xs bg-muted/40 border-border/80"
             />
           </div>
         )}
@@ -267,7 +267,7 @@ export function ConversationSidebar({
                   data-active={isActive ? 'true' : 'false'}
                   onClick={() => onSelectConversation(conv.id)}
                   className={cn(
-                    'group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer',
+                    'group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background',
                     isActive
                       ? 'bg-accent font-medium text-accent-foreground shadow-xs'
                       : 'text-foreground/80 hover:bg-muted/50 hover:text-foreground'
@@ -295,7 +295,7 @@ export function ConversationSidebar({
                         handleDelete(e, conv.id);
                       }
                     }}
-                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer"
+                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </span>

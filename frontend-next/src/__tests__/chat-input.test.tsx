@@ -293,8 +293,84 @@ describe('ChatInput Component', () => {
       await user.tab({ shift: true });
       expect(textarea).toHaveFocus();
     });
+  });
 
+  describe('Ticket 27: Dual Focus Ring Artifacts & Cohesive Chatbox Focus Styling', () => {
+    it('applies harmonized focus-within:border-ring/50 and focus-within:ring-ring/20 on container instead of mismatched primary tokens', () => {
+      render(<ChatInput onSubmit={vi.fn()} />);
+      const container = screen.getByTestId('chat-input-container');
+      expect(container).toHaveClass('focus-within:border-ring/50');
+      expect(container).toHaveClass('focus-within:ring-ring/20');
+      expect(container).not.toHaveClass('focus-within:border-primary/50');
+      expect(container).not.toHaveClass('focus-within:ring-primary/20');
+    });
 
+    it('harmonizes child button focus rings with container without white ring-offset gaps', () => {
+      render(<ChatInput onSubmit={vi.fn()} />);
+      const attachBtn = screen.getByRole('button', { name: /attach files/i });
+      const sendBtn = screen.getByRole('button', { name: /send message/i });
+
+      // Check Attachment button
+      expect(attachBtn).toHaveClass('focus-visible:ring-ring');
+      expect(attachBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(attachBtn).toHaveClass('ring-offset-background');
+      expect(attachBtn).not.toHaveClass('focus-visible:ring-offset-2');
+
+      // Check Send button
+      expect(sendBtn).toHaveClass('focus-visible:ring-ring');
+      expect(sendBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(sendBtn).toHaveClass('ring-offset-background');
+      expect(sendBtn).not.toHaveClass('focus-visible:ring-offset-2');
+    });
+
+    it('dismiss buttons in reply quote and error alerts use normalized tokenized focus ring', () => {
+      useChatStore.setState({
+        replyingTo: { text: 'Quoted context' },
+        attachmentError: 'File too large',
+      });
+      render(<ChatInput onSubmit={vi.fn()} />);
+
+      const dismissReplyBtn = screen.getByRole('button', { name: /dismiss reply quote/i });
+      const dismissErrorBtn = screen.getByRole('button', { name: /dismiss attachment error/i });
+
+      expect(dismissReplyBtn).toHaveClass('focus-visible:ring-ring');
+      expect(dismissReplyBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(dismissErrorBtn).toHaveClass('focus-visible:ring-ring');
+      expect(dismissErrorBtn).toHaveClass('focus-visible:ring-offset-0');
+    });
+
+    it('verifies interactive keyboard tab navigation into composer focuses textarea then attachment button then send button', async () => {
+      const user = userEvent.setup();
+      render(
+        <div>
+          <button type="button" data-testid="outside-button">Outside</button>
+          <ChatInput onSubmit={vi.fn()} />
+        </div>
+      );
+
+      const outsideBtn = screen.getByTestId('outside-button');
+      const textarea = screen.getByTestId('chat-input-textarea');
+      const attachBtn = screen.getByRole('button', { name: /attach files/i });
+      const sendBtn = screen.getByRole('button', { name: /send message/i });
+
+      outsideBtn.focus();
+      expect(outsideBtn).toHaveFocus();
+
+      // Tab into composer lands directly on textarea
+      await user.tab();
+      expect(textarea).toHaveFocus();
+
+      // Enter text to enable send button
+      await user.type(textarea, 'Testing prompt');
+
+      // Next tab lands on attachment button
+      await user.tab();
+      expect(attachBtn).toHaveFocus();
+
+      // Next tab lands on send button
+      await user.tab();
+      expect(sendBtn).toHaveFocus();
+    });
   });
 });
 

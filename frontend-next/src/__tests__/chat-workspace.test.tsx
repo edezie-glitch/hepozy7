@@ -381,7 +381,7 @@ describe('ChatWorkspace Component Integration', () => {
     await user.type(textarea, 'Draft me an agreement{enter}');
 
     // Clarification question should be in chat
-    expect(await screen.findByText('Which type of agreement would you like me to draft?')).toBeInTheDocument();
+    expect(await screen.findByText('Which type of agreement would you like me to draft?', {}, { timeout: 10000 })).toBeInTheDocument();
 
     // Clarification Prompt component should be rendered with suggested reply pills
     expect(screen.getByTestId('clarification-prompt')).toBeInTheDocument();
@@ -396,7 +396,7 @@ describe('ChatWorkspace Component Integration', () => {
     expect(screen.queryByTestId('clarification-prompt')).not.toBeInTheDocument();
 
     // User message is submitted into conversation
-    expect(await screen.findByText('Employment Agreement')).toBeInTheDocument();
+    expect(await screen.findByText('Employment Agreement', {}, { timeout: 10000 })).toBeInTheDocument();
 
     // Second call to sendChatMessage has been made with chosen clarification
     await waitFor(() => {

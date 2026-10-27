@@ -20,7 +20,7 @@ import {
 } from './generated-document-card';
 
 const ACTION_BUTTON_CLASS =
-  'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer';
+  'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background transition-colors cursor-pointer';
 
 export interface MessageItemProps {
   message: ChatMessageItem;
@@ -296,7 +296,7 @@ export function MessageItem({
                   onChange={(e) => setEditText(e.target.value)}
                   onKeyDown={handleEditKeyDown}
                   rows={3}
-                  className="w-full resize-none rounded-lg border border-border bg-background p-2.5 text-sm text-foreground outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="w-full resize-none rounded-lg border border-border bg-background p-2.5 text-sm text-foreground outline-hidden focus:border-ring/50 focus:ring-2 focus:ring-ring/20"
                   autoFocus
                 />
                 <div className="flex items-center justify-end gap-2 pt-1">

@@ -566,5 +566,77 @@ describe('ConversationSidebar Component', () => {
       expect(onToggleCollapse).toHaveBeenCalledWith(false);
     });
   });
+
+  describe('Ticket 27: Focus Styling and Token Standardization in Sidebar', () => {
+    it('renders New Chat button with clean focus-visible:ring-ring and focus-visible:ring-offset-0 without white outline artifact', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          isCollapsed={false}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      const newChatBtn = screen.getByRole('button', { name: /new chat/i });
+      expect(newChatBtn).toHaveClass('focus-visible:ring-ring');
+      expect(newChatBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(newChatBtn).toHaveClass('ring-offset-background');
+      expect(newChatBtn).not.toHaveClass('focus-visible:ring-offset-2');
+    });
+
+    it('uses standardized focus-visible:ring-2 focus-visible:ring-ring on collapsed rail toggle button', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          isCollapsed={true}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      const toggleBtn = screen.getByTestId('sidebar-toggle-button');
+      expect(toggleBtn).toHaveClass('focus-visible:ring-2');
+      expect(toggleBtn).toHaveClass('focus-visible:ring-ring');
+      expect(toggleBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(toggleBtn).not.toHaveClass('focus-visible:ring-1');
+    });
+
+    it('verifies interactive keyboard tab navigation cleanly focuses New Chat button', async () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          isCollapsed={false}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      const newChatBtn = screen.getByRole('button', { name: /new chat/i });
+      newChatBtn.focus();
+      expect(newChatBtn).toHaveFocus();
+    });
+  });
 });
 

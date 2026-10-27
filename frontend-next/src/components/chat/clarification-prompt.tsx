@@ -81,7 +81,7 @@ export function ClarificationPrompt({
               type="button"
               disabled={disabled}
               onClick={() => handlePillClick(reply)}
-              className="inline-flex items-center rounded-full border border-primary/30 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs hover:border-primary hover:bg-primary/10 hover:text-primary transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center rounded-full border border-primary/30 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs hover:border-primary hover:bg-primary/10 hover:text-primary transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
             >
               {reply}
             </button>
@@ -99,7 +99,7 @@ export function ClarificationPrompt({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder="Or type your own answer…"
-          className="flex-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-hidden focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-50"
+          className="flex-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-hidden focus:border-ring/50 focus:ring-2 focus:ring-ring/20 transition-all disabled:opacity-50"
         />
         <Button
           type="submit"
