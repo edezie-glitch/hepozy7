@@ -38,6 +38,12 @@ describe('RegisterForm Component', () => {
     expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login');
   });
 
+  it('renders form with method="POST" to prevent credential leakage in URL', () => {
+    render(<RegisterForm />);
+    const form = screen.getByRole('button', { name: /create account/i }).closest('form');
+    expect(form).toHaveAttribute('method', 'POST');
+  });
+
   it('enforces validation for password length >= 20 and matching passwords', async () => {
     const user = userEvent.setup();
     render(<RegisterForm />);

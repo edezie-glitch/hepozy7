@@ -44,6 +44,12 @@ describe('LoginForm Component', () => {
     );
   });
 
+  it('renders form with method="POST" to prevent credential leakage in URL', () => {
+    render(<LoginForm />);
+    const form = screen.getByRole('button', { name: /log in/i }).closest('form');
+    expect(form).toHaveAttribute('method', 'POST');
+  });
+
   it('renders "Forgot password?" link pointing to /reset-password', () => {
     render(<LoginForm />);
 

@@ -40,6 +40,12 @@ describe('UpdatePasswordForm Component', () => {
     expect(screen.getByRole('button', { name: /update password/i })).toBeInTheDocument();
   });
 
+  it('renders form with method="POST" to prevent credential leakage in URL', () => {
+    render(<UpdatePasswordForm />);
+    const form = screen.getByRole('button', { name: /update password/i }).closest('form');
+    expect(form).toHaveAttribute('method', 'POST');
+  });
+
   it('enforces 20-character minimum password rule', async () => {
     const user = userEvent.setup();
     render(<UpdatePasswordForm />);
