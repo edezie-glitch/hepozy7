@@ -71,6 +71,7 @@ export function ChatWorkspace({
 
   const [prevConversationId, setPrevConversationId] = React.useState(conversationId);
 
+  // eslint-disable-next-line react-hooks/refs
   conversationIdRef.current = conversationId;
 
   if (conversationId !== prevConversationId) {
