@@ -252,6 +252,50 @@ describe('ChatInput Component', () => {
     expect(errorAlert).toHaveTextContent(/hack\.bat: this file type is not supported/i);
     expect(screen.queryByTestId('staged-preview-strip')).not.toBeInTheDocument();
   });
+
+  describe('Ticket 28: Keyboard Tab Navigation Order', () => {
+    it('prioritizes textarea over attachment button when tabbing into composer', async () => {
+      const user = userEvent.setup();
+      render(
+        <div>
+          <button type="button" data-testid="before-element">Before</button>
+          <ChatInput onSubmit={vi.fn()} />
+        </div>
+      );
+
+      const beforeBtn = screen.getByTestId('before-element');
+      const textarea = screen.getByTestId('chat-input-textarea');
+      const attachBtn = screen.getByRole('button', { name: /attach files/i });
+      const sendBtn = screen.getByRole('button', { name: /send message/i });
+
+      beforeBtn.focus();
+      expect(beforeBtn).toHaveFocus();
+
+      // First Tab should land on textarea, NOT attachBtn
+      await user.tab();
+      expect(textarea).toHaveFocus();
+
+      // Type some text to enable send button
+      await user.type(textarea, 'Draft query');
+
+      // Next Tab lands on attachBtn
+      await user.tab();
+      expect(attachBtn).toHaveFocus();
+
+      // Next Tab lands on enabled sendBtn
+      await user.tab();
+      expect(sendBtn).toHaveFocus();
+
+      // Shift+Tab traverses back in reverse order
+      await user.tab({ shift: true });
+      expect(attachBtn).toHaveFocus();
+
+      await user.tab({ shift: true });
+      expect(textarea).toHaveFocus();
+    });
+
+
+  });
 });
 
 

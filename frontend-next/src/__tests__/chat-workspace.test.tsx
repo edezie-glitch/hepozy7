@@ -1519,6 +1519,41 @@ describe('ChatWorkspace Component Integration', () => {
       expect(inputBounds).toContainElement(clarification);
     });
   });
+
+  describe('Ticket 28: ChatWorkspace Keyboard Tab Navigation Order Priority', () => {
+    it('focuses chat-input-textarea before attachment button when tabbing into composer from message list', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
+        {
+          id: 'msg-u1',
+          role: 'user',
+          content: 'Hello Hepozy',
+          created_at: '2026-10-14T10:00:00Z',
+        },
+      ]);
+
+      render(<ChatWorkspace conversationId="conv-tab-priority" />);
+
+      expect(await screen.findByText('Hello Hepozy')).toBeInTheDocument();
+
+      const textarea = screen.getByTestId('chat-input-textarea');
+      const attachBtn = screen.getByRole('button', { name: /attach files/i });
+
+      // Focus the last interactive element in the message list (e.g. edit button)
+      const editBtn = screen.getByRole('button', { name: /edit message/i });
+      editBtn.focus();
+      expect(editBtn).toHaveFocus();
+
+      // Tab into the composer: must land on textarea first, NOT attachment button
+      await user.tab();
+      expect(textarea).toHaveFocus();
+      expect(attachBtn).not.toHaveFocus();
+
+      // Next Tab lands on attachment button
+      await user.tab();
+      expect(attachBtn).toHaveFocus();
+    });
+  });
 });
 
 
