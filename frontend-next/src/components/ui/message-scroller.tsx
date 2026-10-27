@@ -58,8 +58,11 @@ export function MessageScrollerProvider({
   const userScrolledUp = isDetached;
 
   // When anchorKey (e.g. conversationId) changes, reset detached state and schedule instant anchor
+  // eslint-disable-next-line react-hooks/refs
   if (anchorKey !== prevAnchorKeyRef.current) {
+    // eslint-disable-next-line react-hooks/refs
     prevAnchorKeyRef.current = anchorKey;
+    // eslint-disable-next-line react-hooks/refs
     pendingInstantAnchorRef.current = !skipInstantAnchor;
     setIsAtBottom(true);
   }
