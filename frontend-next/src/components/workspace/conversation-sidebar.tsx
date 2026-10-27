@@ -79,6 +79,7 @@ export function ConversationSidebar({
   const [searchQuery, setSearchQuery] = React.useState('');
   const { data: conversations = [], isLoading } = useConversations();
   const deleteMutation = useDeleteConversation();
+  const conversationButtonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
 
   const isControlled = isCollapsedProp !== undefined;
   const collapsed = isControlled ? isCollapsedProp : persistedCollapsed;
@@ -256,24 +257,47 @@ export function ConversationSidebar({
               {searchQuery ? 'No matching conversations' : 'No conversations yet'}
             </div>
           ) : (
-            filteredConversations.map((conv) => {
+            filteredConversations.map((conv, index) => {
               const isActive = activeId === conv.id;
               const displayTitle = conv.title || 'New conversation';
 
               return (
-                <button
+                <div
                   key={conv.id}
-                  type="button"
-                  data-active={isActive ? 'true' : 'false'}
-                  onClick={() => onSelectConversation(conv.id)}
                   className={cn(
-                    'group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background',
+                    'group relative flex w-full items-center justify-between rounded-lg transition-colors',
                     isActive
                       ? 'bg-accent font-medium text-accent-foreground shadow-xs'
                       : 'text-foreground/80 hover:bg-muted/50 hover:text-foreground'
                   )}
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
+                  <button
+                    ref={(el) => {
+                      conversationButtonRefs.current[index] = el;
+                    }}
+                    type="button"
+                    data-active={isActive ? 'true' : 'false'}
+                    onClick={() => onSelectConversation(conv.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Delete') {
+                        e.preventDefault();
+                        handleDelete(e, conv.id);
+                      } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextIndex = (index + 1) % filteredConversations.length;
+                        conversationButtonRefs.current[nextIndex]?.focus();
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevIndex =
+                          (index - 1 + filteredConversations.length) % filteredConversations.length;
+                        conversationButtonRefs.current[prevIndex]?.focus();
+                      }
+                    }}
+                    className={cn(
+                      'flex flex-1 min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background',
+                      isActive ? 'font-medium text-accent-foreground' : 'text-foreground/80 hover:text-foreground'
+                    )}
+                  >
                     <MessageSquare
                       className={cn(
                         'h-3.5 w-3.5 shrink-0',
@@ -281,25 +305,34 @@ export function ConversationSidebar({
                       )}
                     />
                     <span className="truncate">{displayTitle}</span>
-                  </div>
+                  </button>
 
-                  {/* Delete button */}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Delete conversation"
-                    onClick={(e) => handleDelete(e, conv.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleDelete(e, conv.id);
-                      }
-                    }}
-                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </span>
-                </button>
+                  {/* Delete action button */}
+                  <div className="pr-1.5 shrink-0">
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-label="Delete conversation"
+                            onClick={(e) => handleDelete(e, conv.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                conversationButtonRefs.current[index]?.focus();
+                              }
+                            }}
+                            className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:text-destructive focus-visible:bg-destructive/10 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        }
+                      />
+                      <TooltipContent side="right">Delete conversation</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
               );
             })
           )}

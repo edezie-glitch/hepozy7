@@ -638,5 +638,165 @@ describe('ConversationSidebar Component', () => {
       expect(newChatBtn).toHaveFocus();
     });
   });
+
+  describe('Ticket 29 (#37): Fix Keyboard Navigation Tabbing to Invisible Delete Button in Recent Conversations', () => {
+    function setupSidebarWithConversations(
+      conversations: { id: string; title: string; created_at: string }[],
+      onSelect = vi.fn()
+    ) {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: conversations,
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      return render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={onSelect}
+          onNewChat={vi.fn()}
+          isCollapsed={false}
+        />,
+        { wrapper: createWrapper() }
+      );
+    }
+
+    it('ensures delete button is fully visible with tokenized focus ring when focused via keyboard', async () => {
+      const mockConversations = [
+        { id: 'conv-1', title: 'Conversation One', created_at: '2026-10-14T10:00:00Z' },
+        { id: 'conv-2', title: 'Conversation Two', created_at: '2026-10-14T11:00:00Z' },
+      ];
+      setupSidebarWithConversations(mockConversations);
+
+      const deleteButtons = screen.getAllByRole('button', { name: /delete conversation/i });
+      expect(deleteButtons).toHaveLength(2);
+
+      const firstDeleteBtn = deleteButtons[0];
+      // Has focus-visible, and group-focus-within/hover opacity-100 classes
+      expect(firstDeleteBtn).toHaveClass('focus-visible:opacity-100');
+      expect(firstDeleteBtn).toHaveClass('group-focus-within:opacity-100');
+      expect(firstDeleteBtn).toHaveClass('group-hover:opacity-100');
+
+      // Has tokenized focus ring styling
+      expect(firstDeleteBtn).toHaveClass('focus-visible:ring-2');
+      expect(firstDeleteBtn).toHaveClass('focus-visible:ring-ring');
+      expect(firstDeleteBtn).toHaveClass('focus-visible:ring-offset-0');
+      expect(firstDeleteBtn).toHaveClass('ring-offset-background');
+      expect(firstDeleteBtn).toHaveClass('focus-visible:outline-hidden');
+      expect(firstDeleteBtn).toHaveClass('focus-visible:text-destructive');
+      expect(firstDeleteBtn).toHaveClass('focus-visible:bg-destructive/10');
+
+      // Receives focus directly
+      firstDeleteBtn.focus();
+      expect(firstDeleteBtn).toHaveFocus();
+    });
+
+    it('eliminates invalid DOM nesting by rendering select button and delete button as sibling controls', () => {
+      const mockConversations = [
+        { id: 'conv-1', title: 'Conversation One', created_at: '2026-10-14T10:00:00Z' },
+      ];
+      setupSidebarWithConversations(mockConversations);
+
+      const selectBtn = screen.getByText('Conversation One').closest('button');
+      const deleteBtn = screen.getByRole('button', { name: /delete conversation/i });
+
+      expect(selectBtn).toBeInTheDocument();
+      expect(deleteBtn).toBeInTheDocument();
+
+      // Delete button is a native HTML button
+      expect(deleteBtn.tagName).toBe('BUTTON');
+
+      // Neither button is nested within another button (valid W3C HTML)
+      expect(deleteBtn.parentElement?.closest('button')).toBeNull();
+      expect(selectBtn?.contains(deleteBtn)).toBe(false);
+      expect(deleteBtn.contains(selectBtn!)).toBe(false);
+    });
+
+    it('supports keyboard Delete shortcut on focused conversation row to delete item safely', async () => {
+      const user = userEvent.setup();
+      const mockConversations = [
+        { id: 'conv-1', title: 'Conversation to Delete', created_at: '2026-10-14T10:00:00Z' },
+      ];
+      const mutateMock = vi.fn();
+      vi.spyOn(conversationsHooks, 'useDeleteConversation').mockReturnValue({
+        mutate: mutateMock,
+        isPending: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useDeleteConversation>);
+
+      setupSidebarWithConversations(mockConversations);
+
+      const selectBtn = screen.getByText('Conversation to Delete').closest('button');
+      selectBtn?.focus();
+      expect(selectBtn).toHaveFocus();
+
+      // Press Delete key on focused conversation
+      await user.keyboard('{Delete}');
+      expect(mutateMock).toHaveBeenCalledWith('conv-1');
+    });
+
+    it('supports ArrowDown and ArrowUp keyboard navigation across conversations without stopping at delete action', async () => {
+      const user = userEvent.setup();
+      const mockConversations = [
+        { id: 'conv-1', title: 'First Conversation', created_at: '2026-10-14T10:00:00Z' },
+        { id: 'conv-2', title: 'Second Conversation', created_at: '2026-10-14T11:00:00Z' },
+        { id: 'conv-3', title: 'Third Conversation', created_at: '2026-10-14T12:00:00Z' },
+      ];
+      setupSidebarWithConversations(mockConversations);
+
+      const firstBtn = screen.getByText('First Conversation').closest('button');
+      const secondBtn = screen.getByText('Second Conversation').closest('button');
+      const thirdBtn = screen.getByText('Third Conversation').closest('button');
+
+      firstBtn?.focus();
+      expect(firstBtn).toHaveFocus();
+
+      // ArrowDown advances directly to second conversation, skipping delete button
+      await user.keyboard('{ArrowDown}');
+      expect(secondBtn).toHaveFocus();
+
+      // ArrowDown advances to third conversation
+      await user.keyboard('{ArrowDown}');
+      expect(thirdBtn).toHaveFocus();
+
+      // ArrowUp returns to second conversation
+      await user.keyboard('{ArrowUp}');
+      expect(secondBtn).toHaveFocus();
+    });
+
+    it('returns focus to conversation item button when Escape is pressed on delete button', async () => {
+      const user = userEvent.setup();
+      const mockConversations = [
+        { id: 'conv-1', title: 'Conversation Item', created_at: '2026-10-14T10:00:00Z' },
+      ];
+      setupSidebarWithConversations(mockConversations);
+
+      const selectBtn = screen.getByText('Conversation Item').closest('button');
+      const deleteBtn = screen.getByRole('button', { name: /delete conversation/i });
+
+      deleteBtn.focus();
+      expect(deleteBtn).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(selectBtn).toHaveFocus();
+    });
+
+    it('allows sequential keyboard tab navigation through select button and delete button', async () => {
+      const user = userEvent.setup();
+      const mockConversations = [
+        { id: 'conv-1', title: 'Sequential Item', created_at: '2026-10-14T10:00:00Z' },
+      ];
+      setupSidebarWithConversations(mockConversations);
+
+      const selectBtn = screen.getByText('Sequential Item').closest('button');
+      const deleteBtn = screen.getByRole('button', { name: /delete conversation/i });
+
+      selectBtn?.focus();
+      expect(selectBtn).toHaveFocus();
+
+      // Tab advances to delete button
+      await user.tab();
+      expect(deleteBtn).toHaveFocus();
+    });
+  });
 });
 
