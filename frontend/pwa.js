@@ -31,9 +31,51 @@
   }
 
   var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  /* ADDED: once the app has been installed (or opened as an app) on this device, the install button never comes back,
+     even when the site is opened in a normal browser tab afterwards. A browser only offers installation when the app is
+     NOT installed, so that offer (beforeinstallprompt, below) clears this flag if the app was uninstalled. */
+  function installedFlag() { try { return localStorage.getItem("hpInstalled") === "1"; } catch (e) { return false; } }
+  function setInstalled() { try { localStorage.setItem("hpInstalled", "1"); } catch (e) {} }
+  if (standalone) setInstalled();
+  var reallyStandalone = standalone;
+  standalone = standalone || installedFlag();
+  function hideInstallUi() { ["hpInstallBtn", "hpInstall", "hpInstallMsg"].forEach(function (id) { var n = document.getElementById(id); if (n) n.remove(); }); }
+  if (navigator.getInstalledRelatedApps) {
+    navigator.getInstalledRelatedApps().then(function (apps) {
+      if (apps && apps.length) { setInstalled(); standalone = true; hideInstallUi(); }
+    }).catch(function () {});
+  }
   var deferred = null;
   function dismissed() { try { return localStorage.getItem("hpInstallDismissed") === "1"; } catch (e) { return false; } }
   function remember() { try { localStorage.setItem("hpInstallDismissed", "1"); } catch (e) {} }
+
+  /* The install button and pill float ABOVE the message box, never on top of it (on phones they used to cover the
+     text area and the send button). They follow the box when it grows, when the keyboard opens and when the page resizes. */
+  function inputBox() {
+    var ids = ["bottomInputBox", "centerInputBox"];
+    for (var i = 0; i < ids.length; i++) {
+      var e = document.getElementById(ids[i]);
+      if (e && e.offsetParent !== null && e.getBoundingClientRect().height > 0) return e;
+    }
+    return null;
+  }
+  function keepAbove(el, gap) {
+    function place() {
+      if (!el.parentNode) return;
+      var box = inputBox(), vh = (window.visualViewport ? window.visualViewport.height + window.visualViewport.offsetTop : window.innerHeight);
+      el.style.bottom = (box ? Math.max(12, Math.round(vh - box.getBoundingClientRect().top + gap)) : 14) + "px";
+    }
+    place();
+    window.addEventListener("resize", place);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", place);
+    var t = setInterval(function () { if (!el.parentNode) clearInterval(t); else place(); }, 400);
+  }
+  /* a little more room under the message box on phones, so the browser's bottom bar and the home indicator never cover it */
+  (function () {
+    var st = document.createElement("style");
+    st.textContent = "@media (max-width:640px){.input-area{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 36px) !important}}";
+    head.appendChild(st);
+  })();
 
   function pill(text, actionText, onAction) {
     if (standalone || dismissed() || document.getElementById("hpInstall")) return;
@@ -52,10 +94,15 @@
     var x = document.createElement("button"); x.type = "button"; x.className = "x"; x.setAttribute("aria-label", "Close"); x.textContent = "\u00d7";
     x.addEventListener("click", function () { remember(); box.remove(); }); box.appendChild(x);
     document.body.appendChild(box);
+    keepAbove(box, 12);
   }
 
   window.addEventListener("beforeinstallprompt", function (e) {
     e.preventDefault(); deferred = e;
+    /* the browser is offering to install, so the app is not installed (any older "installed" note was out of date) */
+    try { localStorage.removeItem("hpInstalled"); } catch (x) {}
+    standalone = reallyStandalone;
+    if (!standalone) setTimeout(installButton, 300);
     setTimeout(function () {
       pill("Install Hepozy as an app", "Install", function () {
         remember();
@@ -87,7 +134,7 @@
     var st = document.createElement("style");
     st.textContent = "#hpInstallBtn{position:fixed;right:14px;bottom:14px;z-index:890;font:600 12.5px 'Sora',sans-serif;color:#fff;background:#ff7300;" +
       "border:0;border-radius:999px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4)}" +
-      "#hpInstallMsg{position:fixed;right:14px;bottom:62px;z-index:891;max-width:min(300px,calc(100vw - 28px));padding:12px 14px;border-radius:14px;" +
+      "#hpInstallMsg{position:fixed;right:14px;z-index:891;max-width:min(300px,calc(100vw - 28px));padding:12px 14px;border-radius:14px;" +
       "background:#2a2a2a;color:#fff;font:500 13px/1.45 'Sora',sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.45)}";
     document.head.appendChild(st);
     var b = document.createElement("button"); b.type = "button"; b.id = "hpInstallBtn"; b.textContent = "Install app";
@@ -95,11 +142,13 @@
       var old = document.getElementById("hpInstallMsg"); if (old) { old.remove(); return; }
       if (deferred) { deferred.prompt(); deferred = null; return; }
       var m = document.createElement("div"); m.id = "hpInstallMsg"; m.textContent = helpText();
-      document.body.appendChild(m); setTimeout(function () { if (m.parentNode) m.remove(); }, 9000);
+      document.body.appendChild(m); keepAbove(m, 56); setTimeout(function () { if (m.parentNode) m.remove(); }, 9000);
     });
     document.body.appendChild(b);
+    keepAbove(b, 10);
   }
   window.addEventListener("appinstalled", function () { var b = document.getElementById("hpInstallBtn"); if (b) b.remove(); });
+  window.addEventListener("appinstalled", function () { setInstalled(); standalone = true; hideInstallUi(); });  // ADDED
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(installButton, 800); });
   else setTimeout(installButton, 800);
 

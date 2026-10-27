@@ -31,11 +31,7 @@ a.sp-title:hover{text-decoration:underline}
 .sp-strip .sp-img{flex:0 0 auto;margin:0}
 .sp-strip .sp-img img{height:72px;width:auto;min-width:56px;min-height:0}
 .sp-grip{position:absolute;left:0;top:0;width:8px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
-<<<<<<< HEAD
 
-=======
-.sp-grip:hover{background:rgba(255,115,0,.25)}
->>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 @media (max-width:640px){.sp-grip{display:none}}
 .sp-win{position:fixed;inset:0;pointer-events:none;z-index:200}
 .sp-win .sp-lb-box,.sp-win .sp-lb-bar{pointer-events:auto}
@@ -46,9 +42,5 @@ a.sp-title:hover{text-decoration:underline}
 .sp-lb-meta{font-size:12px;line-height:1.4;opacity:.75;display:flex;gap:14px;flex-wrap:wrap;padding:0 4px 2px}
 .sp-lb-bar{position:absolute;left:0;top:0;display:flex;gap:2px;padding:3px;background:var(--surface);border:1px solid var(--border);border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:1}
 .sp-lb-btn{min-width:32px;height:28px;padding:0 9px;border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:15px;line-height:1;cursor:pointer}
-<<<<<<< HEAD
 
-=======
-.sp-lb-btn:hover{background:var(--input-bg)}
->>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
 .sp-lb-reset{font-size:13px}
