@@ -22,6 +22,7 @@ MAX_VISUALS = 3
 _BLOCK_RE = re.compile(r"\[\[VISUAL\]\](.*?)\[\[/VISUAL\]\]", re.S)
 _FENCE_RE = re.compile(r"```[a-zA-Z]*\s*\n(\{.*?\})\s*\n```", re.S)
 _CHART_TYPES = ("line", "bar", "pie", "area")
+_SHAPES = ("process", "start", "end", "decision", "io", "db", "actor", "note")  # ADDED: flowchart shapes
 
 
 def _s(v, n):
@@ -41,8 +42,9 @@ def clean_visual(spec):
     if not isinstance(spec, dict):
         return None
     kind = spec.get("kind")
-    if kind not in ("chart", "diagram"):
-        kind = "diagram" if "nodes" in spec else "chart" if "series" in spec else None
+    if kind not in ("chart", "diagram", "sequence"):  # CHANGED: sequence added
+        kind = ("sequence" if "participants" in spec else "diagram" if "nodes" in spec
+                else "chart" if "series" in spec else None)
     if kind == "chart":
         ctype = _s(spec.get("type"), 10).lower()
         if ctype not in _CHART_TYPES:
@@ -65,18 +67,39 @@ def clean_visual(spec):
         return {"kind": "chart", "type": ctype, "title": _s(spec.get("title"), 80),
                 "x_label": _s(spec.get("x_label"), 40), "y_label": _s(spec.get("y_label"), 40),
                 "labels": labels, "series": series}
+    if kind == "sequence":  # ADDED: sequence diagram (people / systems and the messages between them)
+        parts, seen = [], set()
+        for n in (spec.get("participants") or [])[:10]:
+            if not isinstance(n, dict):
+                continue
+            pid = _s(n.get("id"), 30)
+            if pid and pid not in seen:
+                seen.add(pid)
+                parts.append({"id": pid, "label": _s(n.get("label"), 30) or pid})
+        msgs = []
+        for m in (spec.get("messages") or [])[:40]:
+            if isinstance(m, dict) and _s(m.get("from"), 30) in seen and _s(m.get("to"), 30) in seen:
+                st = _s(m.get("style"), 8).lower()
+                msgs.append({"from": _s(m.get("from"), 30), "to": _s(m.get("to"), 30),
+                             "label": _s(m.get("label"), 48), "style": st if st in ("sync", "return", "async") else "sync"})
+        if len(parts) < 2 or not msgs:
+            return None
+        return {"kind": "sequence", "title": _s(spec.get("title"), 80), "participants": parts, "messages": msgs}
     if kind == "diagram":
         nodes, seen = [], set()
-        for n in (spec.get("nodes") or [])[:24]:
+        for n in (spec.get("nodes") or [])[:30]:  # CHANGED: 24 -> 30
             if not isinstance(n, dict):
                 continue
             nid = _s(n.get("id"), 30)
             if not nid or nid in seen:
                 continue
             seen.add(nid)
-            nodes.append({"id": nid, "label": _s(n.get("label"), 40) or nid, "group": _s(n.get("group"), 24)})
+            shp = _s(n.get("shape"), 10).lower()
+            flds = [_s(x, 36) for x in (n.get("fields") or [])[:8]] if isinstance(n.get("fields"), list) else []
+            nodes.append({"id": nid, "label": _s(n.get("label"), 40) or nid, "group": _s(n.get("group"), 24),
+                          "shape": shp if shp in _SHAPES else "process", "fields": [f for f in flds if f]})  # CHANGED: shape + fields
         edges = []
-        for e in (spec.get("edges") or [])[:48]:
+        for e in (spec.get("edges") or [])[:60]:
             if not isinstance(e, dict):
                 continue
             a, b = _s(e.get("from"), 30), _s(e.get("to"), 30)
@@ -85,7 +108,7 @@ def clean_visual(spec):
         if len(nodes) < 2:
             return None
         d = _s(spec.get("direction"), 2).upper()
-        return {"kind": "diagram", "title": _s(spec.get("title"), 80), "direction": d if d in ("LR", "TB") else "LR",
+        return {"kind": "diagram", "title": _s(spec.get("title"), 80), "direction": d if d in ("LR", "TB") else "LR", "type": _s(spec.get("type"), 14).lower(),
                 "nodes": nodes, "edges": edges}
     return None
 
@@ -113,7 +136,7 @@ def extract_visuals(text, placeholder=None):
     text = _BLOCK_RE.sub(lambda m: take(m.group(1), m.group(0)), text or "")
 
     def fence(m):
-        if '"kind"' not in m.group(1) and '"series"' not in m.group(1) and '"nodes"' not in m.group(1):
+        if '"kind"' not in m.group(1) and '"series"' not in m.group(1) and '"nodes"' not in m.group(1) and '"participants"' not in m.group(1):
             return m.group(0)
         return take(m.group(1), m.group(0))
 
@@ -213,6 +236,8 @@ def render_png(spec, scale=2):
     from PIL import Image, ImageDraw
     if spec["kind"] == "chart":
         img = _draw_chart(spec, scale)
+    elif spec["kind"] == "sequence":  # ADDED
+        img = _draw_sequence(spec, scale)
     else:
         img = _draw_diagram(spec, scale)
     buf = io.BytesIO()
@@ -324,7 +349,15 @@ def _draw_diagram(spec, S):
         if n["group"] and n["group"] not in groups:
             groups.append(n["group"])
     BH, GAPX, GAPY, PADX = 46, 70, 26, 24
-    wid = {n["id"]: max(96, int(_text_w(probe, n["label"], fb) / S) + 2 * PADX) for n in spec["nodes"]}
+    if any(n["shape"] in ("decision", "db") for n in spec["nodes"]):  # ADDED: taller boxes for diamonds / cylinders
+        BH = 60
+    if any(n["fields"] for n in spec["nodes"]):  # ADDED: ER entities list their fields
+        BH = max(BH, 26 + 16 * max(len(n["fields"]) for n in spec["nodes"]))
+    wid = {n["id"]: max(96, int(_text_w(probe, n["label"], fb) / S) + 2 * PADX
+                        + (40 if n["shape"] in ("decision", "io") else 0)) for n in spec["nodes"]}
+    for n in spec["nodes"]:
+        for fl in n["fields"]:
+            wid[n["id"]] = max(wid[n["id"]], int(_text_w(probe, fl, f) / S) + 2 * PADX)
     lr = spec["direction"] == "LR"
     colw = {d: max(wid[n] for n in L) for d, L in layers.items()}
     pos = {}
@@ -394,12 +427,88 @@ def _draw_diagram(spec, S):
             d.text((mx, my), e["label"], font=f, fill="#4b5563", anchor="mm")
     for nid, (x, y) in pos.items():
         c = color(node[nid])
-        d.rounded_rectangle([x * S, y * S, (x + wid[nid]) * S, (y + BH) * S], radius=10 * S, fill="#ffffff", outline=c, width=2 * S)
-        d.rounded_rectangle([x * S, y * S, (x + 6) * S, (y + BH) * S], radius=3 * S, fill=c)
-        d.text(((x + wid[nid] / 2 + 2) * S, (y + BH / 2) * S), node[nid]["label"], font=fb, fill="#111827", anchor="mm")
+        n = node[nid]
+        w, sh = wid[nid], n["shape"]
+        X0, Y0, X1, Y1 = x * S, y * S, (x + w) * S, (y + BH) * S
+        cx_, cy_ = (X0 + X1) / 2, (Y0 + Y1) / 2
+        if sh == "decision":
+            d.polygon([(cx_, Y0), (X1, cy_), (cx_, Y1), (X0, cy_)], fill="#ffffff", outline=c, width=2 * S)
+        elif sh == "io":
+            k = 16 * S
+            d.polygon([(X0 + k, Y0), (X1, Y0), (X1 - k, Y1), (X0, Y1)], fill="#ffffff", outline=c, width=2 * S)
+        elif sh in ("start", "end"):
+            d.rounded_rectangle([X0, Y0, X1, Y1], radius=(Y1 - Y0) / 2, fill="#ffffff", outline=c, width=2 * S)
+        elif sh == "actor":
+            d.ellipse([X0, Y0, X1, Y1], fill="#ffffff", outline=c, width=2 * S)
+        elif sh == "db":
+            e = 9 * S
+            d.rectangle([X0, Y0 + e, X1, Y1 - e], fill="#ffffff")
+            d.line([(X0, Y0 + e), (X0, Y1 - e)], fill=c, width=2 * S)
+            d.line([(X1, Y0 + e), (X1, Y1 - e)], fill=c, width=2 * S)
+            d.ellipse([X0, Y1 - 2 * e, X1, Y1], fill="#ffffff", outline=c, width=2 * S)
+            d.ellipse([X0, Y0, X1, Y0 + 2 * e], fill="#ffffff", outline=c, width=2 * S)
+        elif sh == "note":
+            d.rectangle([X0, Y0, X1, Y1], fill="#fffbe6", outline=c, width=2 * S)
+        elif n["fields"]:
+            d.rectangle([X0, Y0, X1, Y1], fill="#ffffff", outline=c, width=2 * S)
+            d.rectangle([X0, Y0, X1, Y0 + 24 * S], fill=c)
+        else:
+            d.rounded_rectangle([X0, Y0, X1, Y1], radius=10 * S, fill="#ffffff", outline=c, width=2 * S)
+            d.rounded_rectangle([X0, Y0, (x + 6) * S, Y1], radius=3 * S, fill=c)
+        if n["fields"]:
+            d.text((cx_, Y0 + 12 * S), n["label"], font=fb, fill="#ffffff", anchor="mm")
+            for i, fl in enumerate(n["fields"]):
+                d.text((X0 + 10 * S, Y0 + (34 + 16 * i) * S), fl, font=f, fill="#111827", anchor="lm")
+        else:
+            d.text((cx_ + (2 * S if sh == "process" else 0), cy_), n["label"], font=fb, fill="#111827", anchor="mm")
     lx = 30
     for g in groups:
         d.rectangle([lx * S, (H + 10) * S, (lx + 12) * S, (H + 22) * S], fill=gcol[g])
         d.text(((lx + 18) * S, (H + 9) * S), g, font=f, fill="#333333")
         lx += 18 + int(_text_w(d, g, f) / S) + 26
+    return img
+
+
+def _draw_sequence(spec, S):  # ADDED
+    from PIL import Image, ImageDraw
+    f, fb, ft = _font(_FONT_REG, 13 * S), _font(_FONT_BOLD, 14 * S), _font(_FONT_BOLD, 18 * S)
+    parts, msgs = spec["participants"], spec["messages"]
+    COLW, TOP, ROW = 170, 70, 46
+    W, H = max(420, COLW * len(parts) + 40), TOP + 50 + ROW * len(msgs) + 30
+    img = Image.new("RGB", (W * S, H * S), "#ffffff")
+    d = ImageDraw.Draw(img)
+    if spec["title"]:
+        d.text((W * S / 2, 16 * S), spec["title"], font=ft, fill="#1a1a1a", anchor="ma")
+    x = {p["id"]: (20 + COLW * (i + 0.5)) for i, p in enumerate(parts)}
+    for i, p in enumerate(parts):
+        c = PALETTE[i % 8]
+        cx = x[p["id"]]
+        d.rounded_rectangle([(cx - 70) * S, TOP * S, (cx + 70) * S, (TOP + 36) * S], radius=8 * S, fill="#ffffff", outline=c, width=2 * S)
+        d.text((cx * S, (TOP + 18) * S), p["label"], font=fb, fill="#111827", anchor="mm")
+        for yy in range(TOP + 40, H - 20, 12):
+            d.line([(cx * S, yy * S), (cx * S, (yy + 6) * S)], fill="#9ca3af", width=1 * S)
+    for k, m in enumerate(msgs):
+        y = TOP + 70 + k * ROW
+        a, b = x[m["from"]], x[m["to"]]
+        if a == b:
+            d.line([(a * S, (y - 8) * S), ((a + 34) * S, (y - 8) * S), ((a + 34) * S, (y + 8) * S), (a * S, (y + 8) * S)], fill="#4b5563", width=2 * S)
+            tip, prev, lx = (a * S, (y + 8) * S), ((a + 12) * S, (y + 8) * S), a + 40
+            d.text((lx * S, (y - 6) * S), m["label"], font=f, fill="#374151", anchor="lm")
+        else:
+            if m["style"] == "return":
+                sx = a
+                step = 1 if b > a else -1
+                px_ = a
+                while (b - px_) * step > 0:
+                    e_ = px_ + 8 * step
+                    d.line([(px_ * S, y * S), ((e_ if (b - e_) * step > 0 else b) * S, y * S)], fill="#4b5563", width=2 * S)
+                    px_ += 14 * step
+            else:
+                d.line([(a * S, y * S), (b * S, y * S)], fill="#4b5563", width=2 * S)
+            tip, prev = (b * S, y * S), ((b - 12 * (1 if b > a else -1)) * S, y * S)
+            d.text(((a + b) / 2 * S, (y - 8) * S), m["label"], font=f, fill="#374151", anchor="md")
+        ang = math.atan2(tip[1] - prev[1], tip[0] - prev[0])
+        ar = 10 * S
+        d.polygon([tip, (tip[0] - ar * math.cos(ang - .4), tip[1] - ar * math.sin(ang - .4)),
+                   (tip[0] - ar * math.cos(ang + .4), tip[1] - ar * math.sin(ang + .4))], fill="#4b5563")
     return img

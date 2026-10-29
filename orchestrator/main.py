@@ -450,6 +450,70 @@ def mentioned_sites(message: str, limit: int = 2) -> list[str]:
     return urls
 
 
+# ADDED: "open it on that site with my query already in it". A site cannot be operated from here, but most sites take
+# the query through their address. Known sites use their own address pattern; every other site is read once (like the
+# crawler does) and its search form (GET) is turned into an address. Sites that take no input in the address get no link.
+_KNOWN_SEARCH = {
+    "google.com": "https://www.google.com/search?q={q}", "bing.com": "https://www.bing.com/search?q={q}",
+    "duckduckgo.com": "https://duckduckgo.com/?q={q}", "youtube.com": "https://www.youtube.com/results?search_query={q}",
+    "wikipedia.org": "https://en.wikipedia.org/w/index.php?search={q}", "github.com": "https://github.com/search?q={q}",
+    "amazon.com": "https://www.amazon.com/s?k={q}", "stackoverflow.com": "https://stackoverflow.com/search?q={q}",
+    "reddit.com": "https://www.reddit.com/search/?q={q}", "maps.google.com": "https://www.google.com/maps/search/{q}",
+    "translate.google.com": "https://translate.google.com/?text={q}", "wolframalpha.com": "https://www.wolframalpha.com/input?i={q}",
+    "chatgpt.com": "https://chatgpt.com/?q={q}", "pinterest.com": "https://www.pinterest.com/search/pins/?q={q}",
+    "npmjs.com": "https://www.npmjs.com/search?q={q}", "pypi.org": "https://pypi.org/search/?q={q}",
+}
+
+
+def _query_for_site(message: str, site_url: str) -> str:
+    host = re.sub(r"^https?://", "", site_url).split("/")[0]
+    base = host.replace("www.", "")
+    q = re.sub(re.escape(host) + r"\S*", " ", message or "", flags=re.I)
+    q = re.sub(re.escape(base.split(".")[0]), " ", q, flags=re.I)
+    q = re.sub(r"\b(please|can you|could you|go to|open|visit|using|use|inside|in|on|at|the site|website|site|and|give me|the link|link|of|to|for me)\b", " ", q, flags=re.I)
+    return re.sub(r"\s+", " ", q).strip()[:200]
+
+
+def site_open_link(site_url: str, message: str) -> str | None:
+    from urllib.parse import quote, urljoin, urlencode, urlparse
+    q = _query_for_site(message, site_url)
+    if not q:
+        return None
+    host = urlparse(site_url).netloc.lower().replace("www.", "")
+    for k, tpl in _KNOWN_SEARCH.items():
+        if host == k or host.endswith("." + k):
+            return tpl.format(q=quote(q))
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        r = requests.get(site_url, timeout=6, headers={"User-Agent": "Mozilla/5.0 (compatible; HepozyBot/1.0)"})
+        if r.status_code != 200 or "html" not in r.headers.get("content-type", ""):
+            return None
+        soup = BeautifulSoup(r.text[:400000], "html.parser")
+        for form in soup.find_all("form"):
+            if (form.get("method") or "get").lower() != "get":
+                continue
+            fields, target = {}, None
+            for inp in form.find_all(["input", "textarea"]):
+                name, typ = inp.get("name"), (inp.get("type") or "text").lower()
+                if not name:
+                    continue
+                if typ == "hidden":
+                    fields[name] = inp.get("value", "")
+                elif typ in ("text", "search") and target is None:
+                    target = name
+            if not target:
+                continue
+            fields[target] = q
+            action = urljoin(r.url, form.get("action") or "")
+            if not action.startswith("http"):
+                continue
+            return action + ("&" if "?" in action else "?") + urlencode(fields)
+    except Exception as e:
+        print(f"[site_link] {site_url}: {e}")
+    return None
+
+
 def enqueue_crawl_url(url: str) -> None:
     """Same pgmq_send call as /admin/crawl and seed.py - for permanent indexing later."""
     try:
@@ -649,24 +713,47 @@ def clean_reply(text: str, user_message: str) -> str:
 _VISUAL_ASK_RE = re.compile(
     r"\b(graph|chart|plot|line ?graph|bar ?(graph|chart)|pie ?(graph|chart)|histogram|trend ?line|"
     r"architecture|diagram|flow ?chart|system design|infrastructure|data ?flow|block diagram|"
-    r"visuali[sz]e|visuali[sz]ation)\b", re.IGNORECASE)
+    r"visuali[sz]e|visuali[sz]ation|draw\.?io|lucidchart|mermaid|mind ?map|org(ani[sz]ation(al)?)? chart|"
+    r"sequence|erd|er diagram|entity[- ]relationship|uml|use ?case|class diagram|network (diagram|topology)|"
+    r"work ?flow|process flow|swim ?lane|schema diagram|database schema)\b", re.IGNORECASE)  # CHANGED: more diagram types
+
+# ADDED: "what is the logo of X" - the page shows each company's real logo in front of its name (logos.js), so the
+# model must name the companies and never refuse or say it cannot show logos.
+_LOGO_ASK_RE = re.compile(r"\blogos?\b|\bbrand (mark|icon)\b", re.IGNORECASE)
+_LOGO_RULES = (
+    "\n\n(LOGO RULES: the user wants to see the logo of the company or site they named. The page automatically shows the "
+    "real logo in front of each company name you write, so never say you cannot show, draw or provide logos and never "
+    "apologise. Write each company or site name exactly and properly capitalised (Google, draw.io, Microsoft, ...), one "
+    "per line, each followed by one short plain sentence describing its logo (shape and colours). Nothing else.)")
 
 _VISUAL_RULES = (
-    "\n\n(VISUAL RULES, follow exactly: the user wants a picture, not a description. Draw it by writing one "
-    "JSON object between the markers [[VISUAL]] and [[/VISUAL]], on its own lines, with no code fence. "
-    "The page draws it. Never describe the picture with ASCII art, tables of lines, or symbols.\n"
-    "For a graph or chart: [[VISUAL]]{\"kind\":\"chart\",\"type\":\"line\",\"title\":\"...\",\"x_label\":\"...\","
+    "\n\n(VISUAL RULES, follow exactly: the user wants a picture, not a description. Draw EXACTLY what the user asked "
+    "for: the type they named (flowchart, sequence, ER diagram, mind map, org chart, UML, architecture, chart), "
+    "and every step, name, label, entity and order they gave, in their words. Add nothing they did not ask for and "
+    "leave nothing out. If they said draw.io, make the diagram the same way: the page draws it and lets them download "
+    "a .drawio file. Draw it by writing one JSON object between the markers [[VISUAL]] and [[/VISUAL]], on its own "
+    "lines, with no code fence, no Mermaid and no other format. NEVER answer with a link to draw.io or any other site and "
+    "never tell the user to go to a site and make it themselves: the finished picture must be in your answer. Never describe the picture with ASCII art, tables or symbols.\n"
+    "Chart: [[VISUAL]]{\"kind\":\"chart\",\"type\":\"line\",\"title\":\"...\",\"x_label\":\"...\","
     "\"y_label\":\"...\",\"labels\":[\"Jan\",\"Feb\"],\"series\":[{\"name\":\"Sales\",\"data\":[10,20]}]}[[/VISUAL]] "
-    "where type is line, bar, area or pie. Every series needs one number per label. Use real figures from the "
-    "conversation or from the user's data. If the user gave no figures, use clearly typical example values "
-    "and say in one sentence that they are examples.\n"
-    "For an architecture or flow diagram: [[VISUAL]]{\"kind\":\"diagram\",\"title\":\"...\",\"direction\":\"LR\","
-    "\"nodes\":[{\"id\":\"web\",\"label\":\"Web app\",\"group\":\"Client\"}],"
-    "\"edges\":[{\"from\":\"web\",\"to\":\"api\",\"label\":\"HTTPS\"}]}[[/VISUAL]] "
-    "with 3 to 14 nodes, short labels (1 to 4 words), a group for each layer (Client, Edge, Backend, Data, "
-    "AI, and so on), and one edge for every connection that really exists. Direction LR for pipelines, "
-    "TB for layers.\n"
-    "Write the JSON on valid single lines. Put at most 3 visuals in a reply. Add 1 to 3 plain sentences "
+    "where type is line, bar, area or pie. One number per label per series. Use the user's figures; if none, use typical "
+    "example values and say in one sentence they are examples.\n"
+    "Flowchart, architecture, mind map, org chart, ER diagram: [[VISUAL]]{\"kind\":\"diagram\",\"type\":\"flowchart\","
+    "\"title\":\"...\",\"direction\":\"TB\",\"nodes\":[{\"id\":\"s\",\"label\":\"Start\",\"shape\":\"start\"},"
+    "{\"id\":\"c\",\"label\":\"Valid?\",\"shape\":\"decision\"}],"
+    "\"edges\":[{\"from\":\"s\",\"to\":\"c\",\"label\":\"\"}]}[[/VISUAL]] "
+    "Node shape is one of: start, end, process, decision (a question; give its two edges the labels Yes and No), "
+    "io (input or output), db (database or storage), actor (person or system), note. For a flowchart always begin with "
+    "a start node and finish with an end node. For an ER diagram give each entity node a fields list "
+    "(\"fields\":[\"id PK\",\"user_id FK\"]) and label edges with the relation (1:N). For a mind map or org chart "
+    "make the centre or boss the first node and connect each child to its parent. Optional group names a layer "
+    "(Client, Backend, Data). Direction TB for flowcharts, org charts and layers, LR for pipelines. Up to 30 nodes, "
+    "short labels, one edge for every real connection.\n"
+    "Sequence diagram: [[VISUAL]]{\"kind\":\"sequence\",\"title\":\"...\",\"participants\":[{\"id\":\"u\",\"label\":\"User\"},"
+    "{\"id\":\"s\",\"label\":\"Server\"}],\"messages\":[{\"from\":\"u\",\"to\":\"s\",\"label\":\"POST /login\",\"style\":\"sync\"},"
+    "{\"from\":\"s\",\"to\":\"u\",\"label\":\"token\",\"style\":\"return\"}]}[[/VISUAL]] with style sync, return or async, "
+    "messages in time order.\n"
+    "Write the JSON on valid single lines. At most 3 visuals in a reply. Add 1 to 3 plain sentences "
     "that say what the picture shows and what to notice.)"
 )
 
@@ -802,6 +889,71 @@ def _clean_suggestions(options) -> list[str]:
         seen.add(key)
         out.append(text)
     return out[:4]
+
+
+def classify_turn(history: list[dict], message: str, model: str | None = None):
+    """
+    ADDED: decides, for every message in an ongoing chat, whether it CONTINUES the conversation or starts a NEW TOPIC,
+    and rewrites it so it can be understood alone. Replaces the old keyword/length guess.
+      continues -> the model gets the chat history, and the knowledge search uses the rewritten question
+      new_topic -> the model gets NO old messages, so the old conversation cannot pull the answer back to itself
+    Returns {"relation": "continues"|"new_topic", "standalone": str} or None when the check fails (the old behaviour is used).
+    """
+    if model is None:
+        model = TASK_MODEL_MAP["simple"][1]
+    tool = {
+        "type": "function",
+        "function": {
+            "name": "submit_turn_verdict",
+            "description": "Report how the latest message relates to the conversation so far.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "relation": {"type": "string", "enum": ["continues", "new_topic"]},
+                    "standalone": {"type": "string",
+                                   "description": "The latest message rewritten so it can be understood with no earlier context. Same language, every detail kept. If new_topic, copy it unchanged."},
+                },
+                "required": ["relation", "standalone"],
+            },
+        },
+    }
+    try:
+        recent = history[-6:]
+        transcript = "\n".join(f"{t['role']}: {str(t['content'])[:400]}" for t in recent)
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": (
+                        "You decide how a user's latest message relates to the chat so far. You never answer it. "
+                        "You must call submit_turn_verdict. "
+                        "continues = the message refers to, builds on, corrects or depends on anything earlier: words like it, that, this, "
+                        "again, more, why, and, instead; changes to something already written; an answer to a question the assistant asked; "
+                        "or the same subject as the last exchange. "
+                        "new_topic = the message is fully understandable on its own AND is about a clearly different subject than the last exchange. "
+                        "When unsure, choose continues.")},
+                    {"role": "user", "content": f"Conversation so far:\n{transcript}\n\nLatest message: {message!r}\n\nCall submit_turn_verdict now."},
+                ],
+                "tools": [tool],
+                "tool_choice": {"type": "function", "function": {"name": "submit_turn_verdict"}},
+                "temperature": 0,
+            },
+            timeout=6,
+        )
+        r.raise_for_status()
+        calls = r.json()["choices"][0]["message"].get("tool_calls")
+        if not calls:
+            raise ValueError("no tool call returned")
+        v = json.loads(calls[0]["function"]["arguments"])
+        if v.get("relation") not in ("continues", "new_topic"):
+            raise ValueError(f"malformed verdict: {v!r}")
+        standalone = str(v.get("standalone") or "").strip()[:600] or message
+        return {"relation": v["relation"], "standalone": standalone}
+    except Exception as e:
+        print(f"[turn] check failed, using the old keyword guess: {e}")
+        return None
 
 
 def check_query_clarity(history: list[dict], message: str, model: str | None = None) -> dict:
@@ -960,10 +1112,52 @@ def get_recent_history(conversation_id: str | None, max_messages: int = MAX_HIST
         )
         rows = list(reversed(result.data))
         # ADDED: the [[FILES]] path list is for the page, not for the model
-        return [{"role": r["role"], "content": r["content"].rsplit("\n\n[[FILES]]", 1)[0].split("\n\n[[VISUALS]]")[0]} for r in rows]
+        shaped = [{"role": r["role"], "content": r["content"].rsplit("\n\n[[FILES]]", 1)[0].split("\n\n[[VISUALS]]")[0]} for r in rows]
+        # ADDED: keep the conversation SMALL and in proportion, so the newest message is never buried:
+        #  - only the newest attached file keeps its full text; older ones are replaced by a one-line note
+        #    (before, every earlier message dragged its whole file text back in, thousands of words each time)
+        #  - older long answers are cut short; the last two messages stay nearly whole
+        last_att = max((i for i, m in enumerate(shaped) if m["role"] == "user" and "\n\n[[ATTACHMENTS]]" in m["content"]), default=-1)
+        for i, m in enumerate(shaped):
+            c = m["content"]
+            if m["role"] == "user" and "\n\n[[ATTACHMENTS]]" in c:
+                head, att = c.split("\n\n[[ATTACHMENTS]]", 1)
+                c = head + ("\n\n[[ATTACHMENTS]]" + att[:6000] if i == last_att else "\n\n(a file was attached to this earlier message)")
+            cap = 2500 if i >= len(shaped) - 2 else 1200
+            if m["role"] == "assistant" and len(c) > cap:
+                c = c[:cap].rstrip() + " ..."
+            elif m["role"] == "user" and "[[ATTACHMENTS]]" not in c and len(c) > 2500:
+                c = c[:2500].rstrip() + " ..."
+            m["content"] = c
+        # ADDED: a token budget. Groq's free plan allows about 8000 tokens a minute, prompt and answer together.
+        # model_router/fallback.py skips Groq when the prompt is too big, and the answer then comes from Gemini, a
+        # different model with a different style - so a long chat got slower and different answers than a short one.
+        # The newest messages are kept; the oldest are dropped until the history fits. Change: HISTORY_CHAR_BUDGET in .env.
+        budget = int(os.environ.get("HISTORY_CHAR_BUDGET", "9000"))
+        total = sum(len(m["content"]) for m in shaped)
+        while len(shaped) > 2 and total > budget:
+            total -= len(shaped.pop(0)["content"])
+        while len(shaped) > 1 and shaped[0]["role"] != "user":   # the history must start with a user message
+            shaped.pop(0)
+        return shaped
     except Exception as e:
         print(f"[history] fetch failed, continuing without history: {e}")
         return []
+
+
+def _start_now(fn, *args, **kwargs) -> None:
+    """
+    ADDED: runs fn in its own thread RIGHT AWAY. BackgroundTasks only run after a successful reply: if the request
+    failed (model busy, blocked, timeout) the user's message and pictures were never saved, so the phone showed them
+    and another device did not. Saved this way, what the user sent is always saved.
+    """
+    import threading
+    def _run():
+        try:
+            fn(*args, **kwargs)
+        except Exception as e:
+            print(f"[save] {getattr(fn, '__name__', 'task')} failed: {type(e).__name__}: {e}")
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def log_chat_message(
@@ -1343,15 +1537,15 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
 
     # FIRE-AND-FORGET: the user doesn't need to wait for this write to
     # complete before anything else happens.
-    background_tasks.add_task(log_chat_message, user_id, conversation_id, "user", logged_text, message_id=user_message_id)  # ADDED: logged_text instead of req.message
+    _start_now(log_chat_message, user_id, conversation_id, "user", logged_text, message_id=user_message_id)  # CHANGED: saved at once, not only after a successful reply
 
     # ADDED: keep the original files in Supabase Storage, linked to this user
     if req.attachments:
-        background_tasks.add_task(save_attachments, _supabase, user_id, conversation_id, req.attachments, planned_files)
+        _start_now(save_attachments, _supabase, user_id, conversation_id, req.attachments, planned_files)  # CHANGED: saved at once
 
     history = _pre_history if _pre_history is not None else get_recent_history(conversation_id)  # CHANGED: reuse the parallel lookup
     t_history = time.perf_counter()
-    print(f"[chat] conversation {str(conversation_id)[:8]} history: {len(history)} earlier messages read")  # ADDED: shows whether the chat's memory is found
+    print(f"[chat] conversation {str(conversation_id)[:8]} history: {len(history)} earlier messages read, {sum(len(m['content']) for m in history)} chars | is_followup next")  # ADDED: shows whether the chat's memory is found
 
     # task_type/file_format are pure regex/dict-lookup - no I/O, essentially
     # free - computed immediately rather than treated as something to
@@ -1382,7 +1576,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     # follow-up ("make it shorter") could get ANOTHER user's cached answer. Only the first message
     # of a conversation (no history) may read from or write to it.
     live_needed = needs_live(req.message) and not attachment_context and not safety_flag  # ADDED: news / today / latest / prices ...
-    site_urls = mentioned_sites(req.message) if not attachment_context else []  # ADDED: sites the user named
+    site_urls = mentioned_sites(req.message) if not attachment_context and not _VISUAL_ASK_RE.search(req.message) and not _LOGO_ASK_RE.search(req.message) else []  # CHANGED: a diagram/chart request is built here, never answered with a site link
     skip_cache = bool(file_format or attachment_context or safety_flag or reply_quote or history or live_needed or bool(site_urls) or req.use_all_history)
     # ADDED (speed): the clarity check only runs on short messages; longer ones are almost always clear
     need_clarity = (not skip_cache) and (not history) and len(req.message.split()) <= 7  # follow-ups in an ongoing chat are never interrupted
@@ -1402,9 +1596,9 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
             print(f"[chat] cache lookup failed, continuing without it: {e}")
             return None
 
-    def _safe_search():
+    def _safe_search(q=None):
         try:
-            return retrieve_chunks(req.message, match_count=3)
+            return retrieve_chunks(q or req.message, match_count=3)  # CHANGED: q is the standalone question when there is one
         except Exception as e:
             print(f"[chat] retrieval failed, continuing without context: {e}")
             return []
@@ -1415,7 +1609,8 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         clarity_future = pool.submit(check_query_clarity, history, req.message) if need_clarity else None
         guard_future = pool.submit(check_prompt_guard, req.message, guard_model)
         cache_future = None if skip_cache else pool.submit(_safe_cache)
-        search_future = pool.submit(_safe_search) if need_search else None
+        turn_future = pool.submit(classify_turn, history, req.message) if (history and not reply_quote) else None  # ADDED
+        search_future = pool.submit(_safe_search) if (need_search and turn_future is None) else None  # CHANGED: waits for the verdict when there is one
 
         clarity = clarity_future.result() if clarity_future else {"clear": True, "clarifying_question": None, "suggested_replies": None}
         guard_flagged = guard_future.result()
@@ -1425,6 +1620,28 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
 
     if guard_flagged:
         raise HTTPException(status_code=400, detail="Message blocked by safety check.")
+
+    # ADDED: the algorithm for a message in an ongoing chat
+    #   1. classify it: continues the chat, or a new topic
+    #   2. new topic  -> the model gets no old messages (the old conversation cannot hijack it)
+    #      continues  -> the model gets the history, and the search uses the message rewritten to stand alone
+    model_history = history
+    standalone_q = None
+    if turn_future is not None:
+        turn = turn_future.result()
+        if turn:
+            print(f"[turn] {turn['relation']} | standalone: {turn['standalone']!r}")
+            if turn["relation"] == "new_topic":
+                model_history = []
+                is_followup = False
+            else:
+                is_followup = True
+                if turn["standalone"].strip() != req.message.strip():
+                    standalone_q = turn["standalone"]
+            if len(req.message.split()) >= 3 or standalone_q:
+                chunks_early = _safe_search(standalone_q)
+        elif need_search:  # the check failed: old behaviour
+            chunks_early = _safe_search()
 
     if not clarity["clear"]:
         question = clarity["clarifying_question"] or "Could you say a bit more about what you mean?"
@@ -1677,6 +1894,14 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
             "\n\n(This message continues the conversation above. Answer it about the topic the conversation was "
             "just about, using the earlier messages. Never switch to a different topic, and ignore any background "
             "text that is not about that topic.)")
+    if standalone_q:  # ADDED
+        augmented_prompt += f"\n\n(In full, the user is asking: {standalone_q})"
+    if model_history:  # ADDED: every message of an ongoing chat, not only short follow-ups
+        augmented_prompt += (
+            "\n\n(CONVERSATION RULES: the earlier messages of this chat are background. Answer the LATEST message, "
+            "and only the latest message. If it refers to something said earlier, use the earlier messages to understand it. "
+            "If it starts a new topic, answer the new topic and do not continue, repeat or re-send an earlier answer. "
+            "Never build a new answer to an old question unless the user asks for it again.)")
     if req.use_all_history:  # ADDED: the user switched on "read whole history" in Settings
         _digest = _other_chats_digest(user_id, conversation_id)
         if _digest:
@@ -1687,9 +1912,11 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
                 "to use other chats. If the user asks what they talked about before, answer from them and name the "
                 "chat title. Do not mention this block otherwise.)")
             print(f"[chat] read whole history: {len(_digest)} chars from other chats")
-    wants_visual = bool(_VISUAL_ASK_RE.search(req.message))
+    wants_visual = bool(_VISUAL_ASK_RE.search(req.message)) and not _LOGO_ASK_RE.search(req.message)  # CHANGED: 'logo of draw.io' is a logo question, not a diagram request
     if wants_visual:
         augmented_prompt += _VISUAL_RULES
+    elif _LOGO_ASK_RE.search(req.message):  # ADDED
+        augmented_prompt += _LOGO_RULES
 
     if file_format and file_images:
         augmented_prompt += (
@@ -1737,7 +1964,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         return ChatResponse(reply="", conversation_id=conversation_id)
 
     try:
-        result = route_to_model(task_type, augmented_prompt, user_id, history=history)
+        result = route_to_model(task_type, augmented_prompt, user_id, history=model_history)  # CHANGED: history is empty for a new topic
     except Exception as e:
         # This is the one that mattered most: the underlying exception
         # from a failed Gemini call can contain the full request URL,
@@ -1767,6 +1994,17 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
                     import io as _io; _b = _io.BytesIO(); _PI.new("RGB", (4, 4), "white").save(_b, "PNG"); file_images.append(_b.getvalue())
         else:
             model_text, visual_specs = extract_visuals(model_text)
+            if wants_visual and not visual_specs and (time.perf_counter() - t_prompt) < 25:  # ADDED: (only while the answer is not already slow) the model ignored the request; ask once more, picture only
+                try:
+                    _retry = route_to_model(task_type, req.message + _VISUAL_RULES +
+                                            "\n\n(Your last answer had no picture. Reply with ONLY the [[VISUAL]] block "
+                                            "for the request above, then one plain sentence.)", user_id, history=[])
+                    _t2, visual_specs = extract_visuals(_retry["text"])
+                    if visual_specs:
+                        model_text = _t2 or "Here is your diagram."
+                        print("[visuals] retry produced a picture")
+                except Exception as e:
+                    print(f"[visuals] retry failed: {_hide_keys(str(e))}")
 
     reply = clean_reply(model_text, req.message)  # ADDED: no HTML tags or decorative symbols
     reply = _unwrap_bold_headings(_strip_markers(reply))  # ADDED: model output may never carry the hidden markers
@@ -1785,6 +2023,15 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     t_safe = time.perf_counter()
     formatted = format_response(reply, plan["output_type"])
     formatted = re.sub(r"\[\[IMAGE\s+\d+\]\]", "", formatted)  # ADDED: picture markers are not shown in the chat
+    if not file_format and not visual_specs and not _LOGO_ASK_RE.search(req.message):  # ADDED: a named site gets a clickable address with the query already in it
+        try:
+            for _u in mentioned_sites(req.message, 2):
+                _lnk = site_open_link(_u, req.message)
+                if _lnk:
+                    formatted += "\n\nOpen it on " + re.sub(r"^https?://", "", _u).split("/")[0] + " with your request filled in: " + _lnk
+                    break
+        except Exception as e:
+            print(f"[site_link] failed: {e}")
     shown_visuals = [] if file_format else visual_specs   # ADDED: in a file request the charts are inside the file
     stored_formatted = formatted + ("\n\n[[VISUALS]]" + json.dumps(shown_visuals) if shown_visuals else "")
 
@@ -1884,7 +2131,7 @@ def health():
 # does not list it yet. A script already listed in home.html is left alone. The ?v= number is the file's own
 # save time, so a changed script is always loaded fresh. This means a new script only has to be put in the
 # frontend folder; home.html does not need editing.
-_HOME_ADDONS = ("search.js", "download.js", "attach-preview.js", "greeting.js", "links.js", "cleanurl.js", "visuals.js", "history-toggle.js", "viewport-fix.js", "pwa.js", "image-viewer.js", "upload-menu.js")
+_HOME_ADDONS = ("search.js", "download.js", "attach-preview.js", "greeting.js", "links.js", "logos.js", "code-colors.js", "search-logos.js", "status-ticker.js", "cleanurl.js", "visuals.js", "history-toggle.js", "viewport-fix.js", "pwa.js", "image-viewer.js", "upload-menu.js", "history-guard.js")
 
 
 def _home_page():
