@@ -16,7 +16,9 @@ import { ClarificationPrompt } from '@/components/chat/clarification-prompt';
 import { QuotaExceededModal } from '@/components/chat/quota-exceeded-modal';
 import { serializeAttachment } from '@/lib/attachments';
 import { isOptimisticConversationId } from '@/lib/api/conversations';
-import { Sparkles } from 'lucide-react';
+import { ApiError } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   MessageScrollerProvider,
   MessageScroller,
@@ -69,6 +71,13 @@ export function ChatWorkspace({
       useChatStore.getState().getAnimatedAssistantMessageId(conversationId)
     );
 
+  const [historyError, setHistoryError] = React.useState<{
+    message: string;
+    isRateLimited: boolean;
+    retryAfter?: number;
+  } | null>(null);
+  const [retryTrigger, setRetryTrigger] = React.useState(0);
+
   const [prevConversationId, setPrevConversationId] = React.useState(conversationId);
 
   // eslint-disable-next-line react-hooks/refs
@@ -76,6 +85,7 @@ export function ChatWorkspace({
 
   if (conversationId !== prevConversationId) {
     setPrevConversationId(conversationId);
+    setHistoryError(null);
     if (useChatStore.getState().isConversationGenerating(conversationId)) {
       setMessages(useChatStore.getState().getConversationMessages(conversationId) || []);
       setLoadingHistory(false);
@@ -95,7 +105,13 @@ export function ChatWorkspace({
   const setQuotaExceeded = useChatStore((state) => state.setQuotaExceeded);
   const clearQuotaExceeded = useChatStore((state) => state.clearQuotaExceeded);
 
-  // Fetch chat history whenever conversationId changes
+  const handleRetryHistory = React.useCallback(() => {
+    setHistoryError(null);
+    setLoadingHistory(true);
+    setRetryTrigger((n) => n + 1);
+  }, []);
+
+  // Fetch chat history whenever conversationId changes or retry is triggered
   React.useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -106,6 +122,7 @@ export function ChatWorkspace({
           const stored = useChatStore.getState().getConversationMessages(conversationId) || [];
           setMessages(stored);
           setLoadingHistory(false);
+          setHistoryError(null);
           clearClarificationPrompt();
           clearQuotaExceeded();
         }
@@ -126,6 +143,7 @@ export function ChatWorkspace({
             useChatStore.getState().getAnimatedAssistantMessageId(conversationId)
           );
           setLoadingHistory(false);
+          setHistoryError(null);
         }
       });
       return () => {
@@ -135,7 +153,7 @@ export function ChatWorkspace({
     }
 
     // Skip redundant history refetch when this conversation was upgraded in-place from an optimistic ID
-    if (messages.length > 0) {
+    if (messages.length > 0 && retryTrigger === 0) {
       return () => {
         active = false;
         controller.abort();
@@ -155,6 +173,7 @@ export function ChatWorkspace({
           clearClarificationPrompt();
           clearQuotaExceeded();
           setLoadingHistory(false);
+          setHistoryError(null);
         }
       })
       .catch((err: unknown) => {
@@ -165,9 +184,21 @@ export function ChatWorkspace({
         ) {
           return;
         }
-        console.error('Failed to fetch chat history', err);
         if (active) {
           setLoadingHistory(false);
+          const isRateLimit =
+            err instanceof ApiError
+              ? err.isRateLimited
+              : Boolean(error?.message && /too many requests|slow down|429/i.test(error.message));
+          const retryAfter = err instanceof ApiError ? err.retryAfter : undefined;
+          setHistoryError({
+            message: error?.message || 'Failed to load conversation messages.',
+            isRateLimited: isRateLimit,
+            retryAfter,
+          });
+          if (!isRateLimit) {
+            console.error('Failed to fetch chat history', err);
+          }
         }
       });
 
@@ -175,7 +206,13 @@ export function ChatWorkspace({
       active = false;
       controller.abort();
     };
-  }, [conversationId, clearClarificationPrompt, clearQuotaExceeded, setConversationMessages]);
+  }, [
+    conversationId,
+    retryTrigger,
+    clearClarificationPrompt,
+    clearQuotaExceeded,
+    setConversationMessages,
+  ]);
 
   // Central execute turn logic
   const executeTurn = async (
@@ -472,6 +509,37 @@ export function ChatWorkspace({
             >
               {loadingHistory ? (
                 <MessageStreamSkeleton />
+              ) : historyError ? (
+                <div
+                  data-testid="history-error-card"
+                  className="flex flex-1 flex-col items-center justify-center text-center p-6 text-muted-foreground"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive mb-3">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    {historyError.isRateLimited
+                      ? 'Too Many Requests (Rate Limited)'
+                      : 'Unable to Load Conversation'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    {historyError.isRateLimited
+                      ? historyError.retryAfter
+                        ? `You are sending requests too quickly. Please wait ${historyError.retryAfter}s and try again.`
+                        : "You've reached the rate limit. Please wait a moment and try again."
+                      : historyError.message}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={handleRetryHistory}
+                    data-testid="history-retry-button"
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Retry
+                  </Button>
+                </div>
               ) : messages.length === 0 ? (
                 <div
                   data-testid="empty-conversation-card"

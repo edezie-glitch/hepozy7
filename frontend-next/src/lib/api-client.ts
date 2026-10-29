@@ -1,5 +1,23 @@
 import { createClient } from '@/lib/supabase/client';
 
+export class ApiError extends Error {
+  status: number;
+  retryAfter?: number;
+  data?: unknown;
+
+  constructor(message: string, status: number, retryAfter?: number, data?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.retryAfter = retryAfter;
+    this.data = data;
+  }
+
+  get isRateLimited(): boolean {
+    return this.status === 429;
+  }
+}
+
 export async function apiFetch<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
@@ -27,7 +45,16 @@ export async function apiFetch<T = unknown>(
     const message =
       (errorData && (errorData.detail || errorData.message)) ||
       `Request failed with status ${response.status}`;
-    throw new Error(typeof message === 'string' ? message : JSON.stringify(message));
+    const rawRetryAfter = response.headers?.get?.('Retry-After');
+    const retryAfter = rawRetryAfter ? parseInt(rawRetryAfter, 10) : undefined;
+    const finalMessage = typeof message === 'string' ? message : JSON.stringify(message);
+
+    throw new ApiError(
+      finalMessage,
+      response.status,
+      Number.isFinite(retryAfter) ? retryAfter : undefined,
+      errorData
+    );
   }
 
   if (response.status === 204) {

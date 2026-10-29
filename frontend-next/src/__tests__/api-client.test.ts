@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 const mockGetSession = vi.fn();
 
@@ -72,10 +72,42 @@ describe('API Client Helper (apiFetch)', () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
+        headers: new Headers(),
         json: async () => ({ detail: 'Invalid username or password.' }),
       })
     );
 
     await expect(apiFetch('/api/protected')).rejects.toThrow('Invalid username or password.');
+  });
+
+  it('throws structured ApiError with status and retryAfter on 429 rate limit', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+
+    const headers = new Headers();
+    headers.set('Retry-After', '30');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers,
+        json: async () => ({ detail: 'Too many requests. Slow down.' }),
+      })
+    );
+
+    let caughtError: unknown;
+    try {
+      await apiFetch('/chat/conversations');
+    } catch (err) {
+      caughtError = err;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    const apiErr = caughtError as ApiError;
+    expect(apiErr.status).toBe(429);
+    expect(apiErr.isRateLimited).toBe(true);
+    expect(apiErr.retryAfter).toBe(30);
+    expect(apiErr.message).toBe('Too many requests. Slow down.');
   });
 });

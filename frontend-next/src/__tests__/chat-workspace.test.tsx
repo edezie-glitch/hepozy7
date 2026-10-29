@@ -4,6 +4,7 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { ChatWorkspace } from '@/components/chat/chat-workspace';
 import * as chatApi from '@/lib/api/chat';
+import { ApiError } from '@/lib/api-client';
 import { useChatStore } from '@/stores/use-chat-store';
 
 describe('ChatWorkspace Component Integration', () => {
@@ -1676,6 +1677,54 @@ describe('ChatWorkspace Component Integration', () => {
       // Stale message must never appear in the document
       expect(screen.queryByText('Stale Message of Conversation 1')).not.toBeInTheDocument();
       expect(screen.getByText('Message of Conversation 2')).toBeInTheDocument();
+    });
+  });
+
+  describe('Ticket 35 (#44): Rate Limiting 429 Resilience and History Polling Recovery', () => {
+    it('displays user-friendly rate limit feedback and retry button when history fetch receives 429', async () => {
+      const rateLimitError = new ApiError('Too many requests. Slow down.', 429, 30);
+      vi.spyOn(chatApi, 'getChatHistory').mockRejectedValueOnce(rateLimitError);
+
+      render(<ChatWorkspace conversationId="conv-rate-limited" />);
+
+      // Should display rate limit error card rather than unhandled crash
+      expect(await screen.findByTestId('history-error-card')).toBeInTheDocument();
+      expect(screen.getByText(/Too Many Requests/i)).toBeInTheDocument();
+      expect(screen.getByText(/30s/i)).toBeInTheDocument();
+      expect(screen.getByTestId('history-retry-button')).toBeInTheDocument();
+    });
+
+    it('clicking Retry button re-fetches history and restores conversation messages', async () => {
+      const rateLimitError = new ApiError('Too many requests. Slow down.', 429, 30);
+      const recoveredMessages: chatApi.ChatMessageItem[] = [
+        {
+          id: 'msg-rec-1',
+          role: 'assistant',
+          content: 'Recovered after retry!',
+          created_at: '2026-10-29T10:00:00Z',
+        },
+      ];
+
+      const getHistorySpy = vi
+        .spyOn(chatApi, 'getChatHistory')
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce(recoveredMessages);
+
+      render(<ChatWorkspace conversationId="conv-retry-test" />);
+
+      // Wait for error card to appear
+      expect(await screen.findByTestId('history-error-card')).toBeInTheDocument();
+
+      // Click retry
+      const retryButton = screen.getByTestId('history-retry-button');
+      await act(async () => {
+        fireEvent.click(retryButton);
+      });
+
+      // Error card disappears and messages appear
+      expect(await screen.findByText('Recovered after retry!')).toBeInTheDocument();
+      expect(screen.queryByTestId('history-error-card')).not.toBeInTheDocument();
+      expect(getHistorySpy).toHaveBeenCalledTimes(2);
     });
   });
 });

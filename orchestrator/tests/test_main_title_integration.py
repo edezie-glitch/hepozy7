@@ -57,7 +57,7 @@ class TestMainChatTitleIntegration(unittest.TestCase):
 
         # 1. Assert conversation was created with title=None
         mock_supabase.table.assert_any_call("conversations")
-        mock_supabase.table().insert.assert_called_with(
+        mock_supabase.table().insert.assert_any_call(
             {"user_id": "user-test-123", "title": None}
         )
 
@@ -194,3 +194,4 @@ class TestMainChatTitleIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

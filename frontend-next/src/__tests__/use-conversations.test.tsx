@@ -7,6 +7,8 @@ import {
   useCreateConversation,
   useUpdateConversationTitle,
   useDeleteConversation,
+  computeTitlePollingInterval,
+  TITLE_POLL_CONFIG,
 } from '@/hooks/use-conversations';
 import * as conversationsApi from '@/lib/api/conversations';
 
@@ -83,18 +85,14 @@ describe('useConversations Hooks', () => {
 
     const { result } = renderHook(() => useDeleteConversation(), { wrapper });
 
-    // Trigger delete
     result.current.mutate('2');
 
-    // Verify cache was updated optimistically BEFORE network promise resolves
     await waitFor(() => {
       const cached = queryClient.getQueryData<conversationsApi.Conversation[]>(['conversations']);
       expect(cached).toEqual([{ id: '1', title: 'To Keep', created_at: '2026-10-14T00:00:00Z' }]);
     });
 
-    // Resolve network call
     resolveDelete({ status: 'ok' });
-
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 
@@ -121,7 +119,6 @@ describe('useConversations Hooks', () => {
 
     result.current.mutate({ id: '1', title: 'Updated Title' });
 
-    // Verify optimistic update
     await waitFor(() => {
       const cached = queryClient.getQueryData<conversationsApi.Conversation[]>(['conversations']);
       expect(cached?.[0].title).toBe('Updated Title');
@@ -132,9 +129,7 @@ describe('useConversations Hooks', () => {
   });
 
   it('useConversations dynamically polls when a conversation has null title and reflects persisted title', async () => {
-    // Initial fetch returns conversation with title=null (pending background generation)
     const initialList = [{ id: 'conv-new', title: null, created_at: '2026-10-18T00:00:00Z' }];
-    // Subsequent fetch returns conversation with generated title persisted
     const updatedList = [
       { id: 'conv-new', title: 'Autonomous Title Generation', created_at: '2026-10-18T00:00:00Z' },
     ];
@@ -151,12 +146,80 @@ describe('useConversations Hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.[0].title).toBeNull();
 
-    // Trigger refetch (as refetchInterval would do on interval)
     await result.current.refetch();
 
     await waitFor(() => {
       expect(result.current.data?.[0].title).toBe('Autonomous Title Generation');
     });
     expect(getSpy).toHaveBeenCalledTimes(2);
+  });
+
+  describe('Adaptive Title Polling Backoff', () => {
+    it('returns false when data has no pending titles or is empty', () => {
+      const meta = {};
+      expect(computeTitlePollingInterval([], meta)).toBe(false);
+      expect(computeTitlePollingInterval(undefined, meta)).toBe(false);
+      expect(
+        computeTitlePollingInterval(
+          [{ id: '1', title: 'Existing Title', created_at: '2026-10-14T00:00:00Z' }],
+          meta
+        )
+      ).toBe(false);
+    });
+
+    it('returns relaxed base interval on first pending check and backs off on consecutive data updates', () => {
+      const meta: Record<string, unknown> = {};
+      const pendingData = [{ id: 'c1', title: null, created_at: '2026-10-14T00:00:00Z' }];
+
+      const first = computeTitlePollingInterval(pendingData, meta, 100);
+      expect(first).toBe(TITLE_POLL_CONFIG.BASE_INTERVAL_MS);
+      expect(first).toBeGreaterThanOrEqual(2000);
+
+      // Re-render without new data update should not advance the attempt
+      const same = computeTitlePollingInterval(pendingData, meta, 100);
+      expect(same).toBe(first);
+
+      // Next data update advances attempt
+      const second = computeTitlePollingInterval(pendingData, meta, 200);
+      expect(second).toBeGreaterThan(first as number);
+
+      const third = computeTitlePollingInterval(pendingData, meta, 300);
+      expect(third).toBeGreaterThan(second as number);
+    });
+
+    it('caps interval at MAX_INTERVAL_MS and stops polling after MAX_ATTEMPTS', () => {
+      const meta: Record<string, unknown> = {};
+      const pendingData = [{ id: 'c1', title: null, created_at: '2026-10-14T00:00:00Z' }];
+
+      for (let i = 0; i < TITLE_POLL_CONFIG.MAX_ATTEMPTS; i++) {
+        const interval = computeTitlePollingInterval(pendingData, meta, (i + 1) * 100);
+        expect(interval).not.toBe(false);
+        expect(interval as number).toBeLessThanOrEqual(TITLE_POLL_CONFIG.MAX_INTERVAL_MS);
+      }
+
+      // Past MAX_ATTEMPTS, it stops polling to protect rate limits
+      const stopInterval = computeTitlePollingInterval(
+        pendingData,
+        meta,
+        (TITLE_POLL_CONFIG.MAX_ATTEMPTS + 1) * 100
+      );
+      expect(stopInterval).toBe(false);
+    });
+
+    it('resets backoff attempt counter when title is resolved or new pending item appears', () => {
+      const meta: Record<string, unknown> = {};
+      const pendingDataA = [{ id: 'c1', title: null, created_at: '2026-10-14T00:00:00Z' }];
+      computeTitlePollingInterval(pendingDataA, meta, 100);
+      computeTitlePollingInterval(pendingDataA, meta, 200);
+
+      // Title resolved
+      const resolvedData = [{ id: 'c1', title: 'Generated', created_at: '2026-10-14T00:00:00Z' }];
+      expect(computeTitlePollingInterval(resolvedData, meta, 300)).toBe(false);
+
+      // New pending conversation resets attempt to 0
+      const pendingDataB = [{ id: 'c2', title: null, created_at: '2026-10-14T00:00:00Z' }];
+      const fresh = computeTitlePollingInterval(pendingDataB, meta, 400);
+      expect(fresh).toBe(TITLE_POLL_CONFIG.BASE_INTERVAL_MS);
+    });
   });
 });

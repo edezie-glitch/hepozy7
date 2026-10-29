@@ -10,14 +10,87 @@ import {
 
 export const CONVERSATIONS_QUERY_KEY = ['conversations'] as const;
 
+export const TITLE_POLL_CONFIG = {
+  BASE_INTERVAL_MS: 2500,
+  MAX_INTERVAL_MS: 8000,
+  BACKOFF_FACTOR: 1.3,
+  MAX_ATTEMPTS: 10,
+} as const;
+
+export interface TitlePollState {
+  pendingKey: string;
+  attempt: number;
+  lastDataUpdatedAt: number;
+}
+
+const queryPollMap = new WeakMap<object, TitlePollState>();
+
+export function computeTitlePollingInterval(
+  data: Conversation[] | undefined,
+  queryKeyHolder?: object,
+  dataUpdatedAt: number = 0
+): number | false {
+  if (!data || data.length === 0) {
+    if (queryKeyHolder) {
+      queryPollMap.delete(queryKeyHolder);
+    }
+    return false;
+  }
+
+  const pendingList = data.filter((conv) => !conv.title).map((conv) => conv.id).sort();
+  if (pendingList.length === 0) {
+    if (queryKeyHolder) {
+      queryPollMap.delete(queryKeyHolder);
+    }
+    return false;
+  }
+
+  const pendingKey = pendingList.join(',');
+  let pollState = queryKeyHolder ? queryPollMap.get(queryKeyHolder) : undefined;
+
+  if (!pollState || pollState.pendingKey !== pendingKey) {
+    pollState = {
+      pendingKey,
+      attempt: 0,
+      lastDataUpdatedAt: dataUpdatedAt,
+    };
+  } else if (dataUpdatedAt > pollState.lastDataUpdatedAt) {
+    pollState = {
+      pendingKey,
+      attempt: pollState.attempt + 1,
+      lastDataUpdatedAt: dataUpdatedAt,
+    };
+  }
+
+  if (queryKeyHolder) {
+    queryPollMap.set(queryKeyHolder, pollState);
+  }
+
+  if (pollState.attempt >= TITLE_POLL_CONFIG.MAX_ATTEMPTS) {
+    return false;
+  }
+
+  const interval = Math.min(
+    Math.round(
+      TITLE_POLL_CONFIG.BASE_INTERVAL_MS *
+        Math.pow(TITLE_POLL_CONFIG.BACKOFF_FACTOR, pollState.attempt)
+    ),
+    TITLE_POLL_CONFIG.MAX_INTERVAL_MS
+  );
+
+  return interval;
+}
+
 export function useConversations() {
   return useQuery<Conversation[]>({
     queryKey: CONVERSATIONS_QUERY_KEY,
     queryFn: getConversations,
     refetchInterval: (query) => {
-      const data = query.state.data;
-      const hasPendingTitle = Boolean(data && data.some((conv) => !conv.title));
-      return hasPendingTitle ? 1500 : false;
+      return computeTitlePollingInterval(
+        query.state.data,
+        query,
+        query.state.dataUpdatedAt
+      );
     },
   });
 }
