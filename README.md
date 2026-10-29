@@ -92,6 +92,14 @@ OWNER_ADMIN_KEY=your-admin-secret
 ENABLE_DOCS=1
 ALLOWED_ORIGINS=*
 LOCAL_DEV=1
+
+# Bot Guard & Rate Limiting (Optional)
+BOT_HEAVY_PER_MIN=40            # Limit for heavy endpoints (POST /chat, /search, POST /auth)
+BOT_GENERAL_PER_MIN=240         # Limit for lightweight endpoints (GET /chat/conversations, history, etc.)
+BOT_LOCAL_HEAVY_PER_MIN=400     # Heavy route limit for loopback / local development
+BOT_LOCAL_GENERAL_PER_MIN=2400  # General route limit for loopback / local development
+BOT_BYPASS_LOCAL=0              # Set to 1 to bypass rate limits entirely for localhost
+BOT_GUARD_DISABLED=0            # Set to 1 to disable bot guard middleware
 ```
 
 ---
