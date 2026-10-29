@@ -58,9 +58,12 @@ export async function editChatMessage(
   });
 }
 
-export async function getChatHistory(conversationId: string): Promise<ChatMessageItem[]> {
-  const data = await apiFetch<{ messages: ChatMessageItem[] }>(
-    `/api/chat/history/${conversationId}`
-  );
+export async function getChatHistory(
+  conversationId: string,
+  signal?: AbortSignal
+): Promise<ChatMessageItem[]> {
+  const data = await (signal
+    ? apiFetch<{ messages: ChatMessageItem[] }>(`/api/chat/history/${conversationId}`, { signal })
+    : apiFetch<{ messages: ChatMessageItem[] }>(`/api/chat/history/${conversationId}`));
   return data.messages || [];
 }

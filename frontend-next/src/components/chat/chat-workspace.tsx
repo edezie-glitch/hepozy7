@@ -98,6 +98,7 @@ export function ChatWorkspace({
   // Fetch chat history whenever conversationId changes
   React.useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     if (!conversationId || isOptimisticConversationId(conversationId)) {
       queueMicrotask(() => {
@@ -111,6 +112,7 @@ export function ChatWorkspace({
       });
       return () => {
         active = false;
+        controller.abort();
       };
     }
 
@@ -128,6 +130,7 @@ export function ChatWorkspace({
       });
       return () => {
         active = false;
+        controller.abort();
       };
     }
 
@@ -135,10 +138,11 @@ export function ChatWorkspace({
     if (messages.length > 0) {
       return () => {
         active = false;
+        controller.abort();
       };
     }
 
-    getChatHistory(conversationId)
+    getChatHistory(conversationId, controller.signal)
       .then((history) => {
         if (active) {
           // If the conversation began generating while history was fetching, do not overwrite in-flight messages
@@ -153,7 +157,14 @@ export function ChatWorkspace({
           setLoadingHistory(false);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
+        const error = err as Error | null;
+        if (
+          error?.name === 'AbortError' ||
+          (typeof DOMException !== 'undefined' && err instanceof DOMException && err.name === 'AbortError')
+        ) {
+          return;
+        }
         console.error('Failed to fetch chat history', err);
         if (active) {
           setLoadingHistory(false);
@@ -162,6 +173,7 @@ export function ChatWorkspace({
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [conversationId, clearClarificationPrompt, clearQuotaExceeded, setConversationMessages]);
 

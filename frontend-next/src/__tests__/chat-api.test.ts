@@ -120,4 +120,27 @@ describe('Chat API Client', () => {
     expect(apiFetchSpy).toHaveBeenCalledWith('/api/chat/history/conv-123');
     expect(result).toEqual(mockMessages);
   });
+
+  it('getChatHistory forwards optional AbortSignal to apiFetch', async () => {
+    const mockMessages: ChatMessageItem[] = [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'Hi',
+        created_at: '2026-10-14T10:00:00Z',
+      },
+    ];
+
+    const apiFetchSpy = vi.spyOn(apiClient, 'apiFetch').mockResolvedValueOnce({
+      messages: mockMessages,
+    });
+    const controller = new AbortController();
+
+    const result = await getChatHistory('conv-123', controller.signal);
+
+    expect(apiFetchSpy).toHaveBeenCalledWith('/api/chat/history/conv-123', {
+      signal: controller.signal,
+    });
+    expect(result).toEqual(mockMessages);
+  });
 });

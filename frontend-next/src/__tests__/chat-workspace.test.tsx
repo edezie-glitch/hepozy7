@@ -1554,6 +1554,130 @@ describe('ChatWorkspace Component Integration', () => {
       expect(attachBtn).toHaveFocus();
     });
   });
+
+  describe('Ticket 30 (#39): Cancel In-Flight History Requests on Conversation Switch and Handle Transient Disconnections', () => {
+    it('aborts in-flight getChatHistory request via AbortSignal when switching conversationId', async () => {
+      let firstSignal: AbortSignal | undefined;
+      const getChatHistorySpy = vi.spyOn(chatApi, 'getChatHistory').mockImplementation((convId, signal) => {
+        if (convId === 'conv-switch-1') {
+          firstSignal = signal;
+          return new Promise(() => {}); // Keep in flight
+        }
+        return Promise.resolve([]);
+      });
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-switch-1" />);
+
+      expect(getChatHistorySpy).toHaveBeenCalledWith('conv-switch-1', expect.any(AbortSignal));
+      expect(firstSignal).toBeDefined();
+      expect(firstSignal?.aborted).toBe(false);
+
+      // Switch conversations to conv-switch-2
+      rerender(<ChatWorkspace conversationId="conv-switch-2" />);
+
+      expect(firstSignal?.aborted).toBe(true);
+      expect(getChatHistorySpy).toHaveBeenCalledWith('conv-switch-2', expect.any(AbortSignal));
+    });
+
+    it('aborts in-flight getChatHistory request when component unmounts', async () => {
+      let signalCaptured: AbortSignal | undefined;
+      vi.spyOn(chatApi, 'getChatHistory').mockImplementation((convId, signal) => {
+        signalCaptured = signal;
+        return new Promise(() => {});
+      });
+
+      const { unmount } = render(<ChatWorkspace conversationId="conv-unmount" />);
+      expect(signalCaptured).toBeDefined();
+      expect(signalCaptured?.aborted).toBe(false);
+
+      unmount();
+      expect(signalCaptured?.aborted).toBe(true);
+    });
+
+    it('swallows AbortError cleanly without logging console errors or corrupting loading state', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      let rejectFirst: (reason?: any) => void;
+      vi.spyOn(chatApi, 'getChatHistory').mockImplementation((convId) => {
+        if (convId === 'conv-abort-err-1') {
+          return new Promise((_, reject) => {
+            rejectFirst = reject;
+          });
+        }
+        return Promise.resolve([
+          {
+            id: 'm-2',
+            role: 'assistant',
+            content: 'Hello from conv 2',
+            created_at: '2026-10-20T10:00:00Z',
+          },
+        ]);
+      });
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-abort-err-1" />);
+
+      // Switch to conv 2 while conv 1 is in-flight
+      rerender(<ChatWorkspace conversationId="conv-abort-err-2" />);
+
+      // Now reject conv 1 with AbortError
+      const abortError = new DOMException('The user aborted a request.', 'AbortError');
+      act(() => {
+        rejectFirst(abortError);
+      });
+
+      // Assert console.error was not called for the abort error
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        'Failed to fetch chat history',
+        expect.objectContaining({ name: 'AbortError' })
+      );
+
+      // Verify conv 2 history loaded cleanly
+      expect(await screen.findByText('Hello from conv 2')).toBeInTheDocument();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('prevents race conditions: slower previous conversation history never overwrites active conversation state', async () => {
+      let resolveFirst: (messages: chatApi.ChatMessageItem[]) => void;
+      vi.spyOn(chatApi, 'getChatHistory').mockImplementation((convId) => {
+        if (convId === 'conv-race-1') {
+          return new Promise((resolve) => {
+            resolveFirst = resolve;
+          });
+        }
+        return Promise.resolve([
+          {
+            id: 'm-conv-2',
+            role: 'user',
+            content: 'Message of Conversation 2',
+            created_at: '2026-10-20T10:00:00Z',
+          },
+        ]);
+      });
+
+      const { rerender } = render(<ChatWorkspace conversationId="conv-race-1" />);
+
+      // Switch immediately to conv 2
+      rerender(<ChatWorkspace conversationId="conv-race-2" />);
+
+      expect(await screen.findByText('Message of Conversation 2')).toBeInTheDocument();
+
+      // Conv 1 finishes much later
+      act(() => {
+        resolveFirst([
+          {
+            id: 'm-conv-1',
+            role: 'user',
+            content: 'Stale Message of Conversation 1',
+            created_at: '2026-10-19T10:00:00Z',
+          },
+        ]);
+      });
+
+      // Stale message must never appear in the document
+      expect(screen.queryByText('Stale Message of Conversation 1')).not.toBeInTheDocument();
+      expect(screen.getByText('Message of Conversation 2')).toBeInTheDocument();
+    });
+  });
 });
 
 

@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.requests import ClientDisconnect
 
 from supabase import create_client
 
@@ -163,18 +164,46 @@ def _unwrap_bold_headings(text: str) -> str:
     return _BOLD_HEADING_RE.sub(r"\1", text)
 
 
+def _is_transient_db_error(exc: Exception) -> bool:
+    if isinstance(exc, ClientDisconnect):
+        return False
+    err_str = str(exc).lower()
+    return any(
+        signal in err_str
+        for signal in (
+            "server disconnected",
+            "connection reset",
+            "connection closed",
+            "remoteprotocolerror",
+            "remotedisconnected",
+            "broken pipe",
+            "socket error",
+            "eof occurred",
+        )
+    )
+
+
 def assert_owner(conversation_id: str, uid: str) -> None:
     """404 unless this conversation belongs to the signed-in user.
     Needed because the service-role Supabase client bypasses row-level security."""
-    try:
-        r = (
-            _supabase.table("conversations").select("id")
-            .eq("id", conversation_id).eq("user_id", uid).limit(1).execute()
-        )
-    except Exception as e:
-        print(f"[assert_owner] lookup failed: {e}")
-        raise HTTPException(status_code=502, detail="Could not verify conversation")
-    if not r.data:
+    result = None
+    for attempt in range(2):
+        try:
+            result = (
+                _supabase.table("conversations").select("id")
+                .eq("id", conversation_id).eq("user_id", uid).limit(1).execute()
+            )
+            break
+        except ClientDisconnect:
+            print(f"[assert_owner] client disconnected for {conversation_id}: quiet teardown")
+            raise
+        except Exception as e:
+            if attempt == 0 and _is_transient_db_error(e):
+                time.sleep(0.05)
+                continue
+            print(f"[assert_owner] lookup failed: {e}")
+            raise HTTPException(status_code=502, detail="Could not verify conversation")
+    if not result or not result.data:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
 
@@ -1237,16 +1266,27 @@ def list_conversations(uid: str = Depends(current_user)):
 def chat_history(conversation_id: str, uid: str = Depends(current_user)):
     assert_owner(conversation_id, uid)
     try:
-        result = (
-            _supabase.table("chat_messages")
-            .select("id, role, content, created_at, download_url, file_name")
-            .eq("conversation_id", conversation_id)
-            .order("created_at", desc=False)
-            .execute()
-        )
+        result = None
+        for attempt in range(2):
+            try:
+                result = (
+                    _supabase.table("chat_messages")
+                    .select("id, role, content, created_at, download_url, file_name")
+                    .eq("conversation_id", conversation_id)
+                    .order("created_at", desc=False)
+                    .execute()
+                )
+                break
+            except ClientDisconnect:
+                raise
+            except Exception as e:
+                if attempt == 0 and _is_transient_db_error(e):
+                    time.sleep(0.05)
+                    continue
+                raise
         # ADDED: hide the extracted file/image text from the visible message.
         # It stays saved in the database so the model can re-read it later.
-        for m in result.data:
+        for m in (result.data if result else []):
             content = m["content"]
             files = []
             if m["role"] == "user" and "\n\n[[FILES]]" in content:  # CHANGED: only the server's own marker on user rows is trusted
@@ -1281,7 +1321,10 @@ def chat_history(conversation_id: str, uid: str = Depends(current_user)):
             m["attachments"] = files
             if m.get("file_name"):  # ADDED: the random part of a file name is never shown, old rows included
                 m["file_name"] = _display_file_name(m["file_name"])
-        return {"messages": result.data}
+        return {"messages": result.data if result else []}
+    except ClientDisconnect:
+        print(f"[chat_history] client disconnected for {conversation_id}: quiet teardown")
+        raise
     except Exception as e:
         print(f"[chat_history] failed: {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch chat history")
