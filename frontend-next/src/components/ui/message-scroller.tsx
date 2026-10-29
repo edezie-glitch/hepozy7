@@ -288,7 +288,7 @@ export interface MessageScrollerButtonProps
 }
 
 const BASE_SCROLL_BUTTON_CLASS =
-  'flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-md backdrop-blur-xs transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-in fade-in zoom-in-95 cursor-pointer';
+  'flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-md backdrop-blur-xs transition-all hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background animate-in fade-in zoom-in-95 cursor-pointer';
 
 export const MessageScrollerButton = React.forwardRef<
   HTMLButtonElement,

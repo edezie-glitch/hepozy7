@@ -46,6 +46,7 @@ from response import format_response, tidy_stored_reply  # CHANGED: tidy_stored_
 from retriever.search import search as retrieve_chunks
 from workflow import decide_workflow
 from site_info import SITE_INFO
+from title_generator import generate_and_persist_conversation_title
 
 # ADDED: cached answers are tagged with a fingerprint of site_info.py. When you edit site_info.py the
 # fingerprint changes, so answers cached under the old rules are never served again.
@@ -1498,7 +1499,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     if not conversation_id:
         try:
             result = _supabase.table("conversations").insert(
-                {"user_id": user_id, "title": req.message.strip()[:80]}
+                {"user_id": user_id, "title": None}
             ).execute()
             conversation_id = result.data[0]["id"]
         except Exception as e:
@@ -1544,6 +1545,7 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         _start_now(save_attachments, _supabase, user_id, conversation_id, req.attachments, planned_files)  # CHANGED: saved at once
 
     history = _pre_history if _pre_history is not None else get_recent_history(conversation_id)  # CHANGED: reuse the parallel lookup
+    is_first_turn = (not req.conversation_id) or (len(history) == 0)
     t_history = time.perf_counter()
     print(f"[chat] conversation {str(conversation_id)[:8]} history: {len(history)} earlier messages read, {sum(len(m['content']) for m in history)} chars | is_followup next")  # ADDED: shows whether the chat's memory is found
 
@@ -1646,6 +1648,14 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
     if not clarity["clear"]:
         question = clarity["clarifying_question"] or "Could you say a bit more about what you mean?"
         background_tasks.add_task(log_chat_message, user_id, conversation_id, "assistant", question, message_id=assistant_message_id)
+        if is_first_turn:
+            background_tasks.add_task(
+                generate_and_persist_conversation_title,
+                conversation_id,
+                user_id,
+                req.message,
+                _supabase,
+            )
         return ChatResponse(
             reply=question,
             conversation_id=conversation_id,
@@ -1697,6 +1707,14 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
             log_usage, user_id, "cache", task_type,
             cached["input_tokens"], cached["output_tokens"], True,
         )
+        if is_first_turn:
+            background_tasks.add_task(
+                generate_and_persist_conversation_title,
+                conversation_id,
+                user_id,
+                req.message,
+                _supabase,
+            )
         return ChatResponse(reply=formatted, conversation_id=conversation_id,
                             user_message_id=user_message_id, assistant_message_id=assistant_message_id)
 
@@ -2064,6 +2082,15 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks, request: Request, 
         download_url, file_name,
         message_id=assistant_message_id,
     )
+
+    if is_first_turn:
+        background_tasks.add_task(
+            generate_and_persist_conversation_title,
+            conversation_id,
+            user_id,
+            req.message,
+            _supabase,
+        )
     # REMOVED a duplicate log_usage() call that was here. router.route()
     # already logs this exact call via cost_tracker.py's track_call(), which
     # fires log_usage() automatically in its finally block on every call to

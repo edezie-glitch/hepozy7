@@ -31,6 +31,12 @@ describe('ForgotPasswordForm Component', () => {
     );
   });
 
+  it('renders form with method="POST" to prevent credential leakage in URL', () => {
+    render(<ForgotPasswordForm />);
+    const form = screen.getByRole('button', { name: /send recovery link/i }).closest('form');
+    expect(form).toHaveAttribute('method', 'POST');
+  });
+
   it('displays validation errors on empty or invalid email inputs', async () => {
     const user = userEvent.setup();
     render(<ForgotPasswordForm />);

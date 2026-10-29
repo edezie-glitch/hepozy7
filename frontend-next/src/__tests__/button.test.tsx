@@ -63,4 +63,27 @@ describe('Button component', () => {
     expect(element).toHaveAttribute('href', '/as-child-link');
     expect(element).toHaveClass('bg-secondary');
   });
+
+  describe('Ticket 27: Focus Ring Normalization & Offset Artifact Fix', () => {
+    it('applies focus-visible:ring-ring and focus-visible:ring-offset-0 without white focus-visible:ring-offset-2', () => {
+      render(<Button>Focus Target</Button>);
+      const button = screen.getByRole('button', { name: /focus target/i });
+      expect(button).toHaveClass('focus-visible:ring-ring');
+      expect(button).toHaveClass('focus-visible:ring-offset-0');
+      expect(button).toHaveClass('ring-offset-background');
+      expect(button).not.toHaveClass('focus-visible:ring-offset-2');
+    });
+
+    it('consistently applies unified focus styles across all button variants', () => {
+      const variants = ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const;
+      for (const variant of variants) {
+        const { unmount } = render(<Button variant={variant}>{variant}</Button>);
+        const button = screen.getByRole('button', { name: new RegExp(variant, 'i') });
+        expect(button).toHaveClass('focus-visible:ring-ring');
+        expect(button).toHaveClass('focus-visible:ring-offset-0');
+        expect(button).not.toHaveClass('focus-visible:ring-offset-2');
+        unmount();
+      }
+    });
+  });
 });

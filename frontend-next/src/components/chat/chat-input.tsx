@@ -167,7 +167,7 @@ export function ChatInput({
       className={`relative flex flex-col rounded-2xl border bg-card p-2 shadow-xs transition-all ${
         isDraggingOver
           ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
-          : 'border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20'
+          : 'border-border focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/20'
       } ${className}`}
     >
       {/* Hidden file input for file selector */}
@@ -178,6 +178,8 @@ export function ChatInput({
         multiple
         accept={ACCEPTED_FILE_EXTENSIONS}
         onChange={handleFileSelect}
+        tabIndex={-1}
+        aria-hidden="true"
         className="hidden"
       />
 
@@ -195,7 +197,7 @@ export function ChatInput({
             type="button"
             onClick={() => setAttachmentError(null)}
             aria-label="Dismiss attachment error"
-            className="rounded-md p-1 text-destructive/80 hover:bg-destructive/20 hover:text-destructive transition-colors cursor-pointer"
+            className="rounded-md p-1 text-destructive/80 hover:bg-destructive/20 hover:text-destructive transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -265,7 +267,7 @@ export function ChatInput({
             type="button"
             onClick={clearReplyingTo}
             aria-label="Dismiss reply quote"
-            className="rounded-md p-1 text-primary/70 hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer"
+            className="rounded-md p-1 text-primary/70 hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -274,19 +276,6 @@ export function ChatInput({
 
       {/* Input row */}
       <div className="flex items-end gap-2 px-1">
-        {/* Attachment Button */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || isGenerating}
-          aria-label="Attach files"
-          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
-        >
-          <Paperclip className="h-4 w-4" />
-        </Button>
-
         <textarea
           ref={textareaRef}
           data-testid="chat-input-textarea"
@@ -299,6 +288,19 @@ export function ChatInput({
           rows={1}
           className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm sm:text-base text-foreground placeholder:text-muted-foreground outline-hidden focus:outline-hidden disabled:opacity-50 min-h-[38px] max-h-48 overflow-y-auto"
         />
+
+        {/* Attachment Button */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || isGenerating}
+          aria-label="Attach files"
+          className="order-first h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+        >
+          <Paperclip className="h-4 w-4" />
+        </Button>
 
         {/* Dynamic Send / Stop Button */}
         {isGenerating ? (

@@ -31,7 +31,7 @@ export function UserProfileDropdown({
   const trigger = (
     <DropdownMenuTrigger
       className={cn(
-        'flex items-center gap-2.5 rounded-lg text-left text-sm font-medium transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none',
+        'flex items-center gap-2.5 rounded-lg text-left text-sm font-medium transition-colors hover:bg-accent/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 ring-offset-background cursor-pointer select-none',
         showName ? 'w-full px-2.5 py-2' : 'h-8 w-8 justify-center p-0 rounded-lg',
         className
       )}

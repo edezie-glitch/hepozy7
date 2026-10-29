@@ -1,16 +1,3 @@
-<<<<<<< HEAD
-fastapi
-uvicorn[standard]
-supabase
-python-dotenv
-requests
-pydantic[email]
-httpx
-beautifulsoup4
-python-docx          # imported as `docx` - used in main.py's _generate_docx
-reportlab            # used in main.py's _generate_pdf
-openpyxl             # used in main.py's _generate_xlsxpip install
-=======
 fastapi
 uvicorn[standard]
 supabase
@@ -24,4 +11,3 @@ reportlab            # used in main.py's _generate_pdf
 openpyxl             # used in main.py's _generate_xlsx
 tzdata               # IANA timezones on Windows (Asia/Manila)
 pypdf                # used in attachments.py to extract text from uploaded PDFs
->>>>>>> 17d14f619ee27a032db336356d927b1b42009a91
