@@ -159,7 +159,13 @@
     nodes.forEach(function (n) { if (n.group && groups.indexOf(n.group) < 0) groups.push(n.group); });
     var gcol = {}; groups.forEach(function (g, i) { gcol[g] = PAL[i % 8]; });
     var BH = 46, GX = 70, GY = 26, PX = 24, pos = {}, wid = {}, W, H;
-    var node = {}; nodes.forEach(function (n) { node[n.id] = n; wid[n.id] = Math.max(96, Math.ceil(textW(n.label, 14, true)) + 2 * PX); });
+    if (nodes.some(function (n) { return n.shape === "decision" || n.shape === "db"; })) BH = 60;                       /* ADDED */
+    nodes.forEach(function (n) { if (n.fields && n.fields.length) BH = Math.max(BH, 26 + 16 * Math.max.apply(null, nodes.map(function (m) { return (m.fields || []).length; }))); });
+    var node = {}; nodes.forEach(function (n) {
+      node[n.id] = n;
+      wid[n.id] = Math.max(96, Math.ceil(textW(n.label, 14, true)) + 2 * PX + (n.shape === "decision" || n.shape === "io" ? 40 : 0));
+      (n.fields || []).forEach(function (f) { wid[n.id] = Math.max(wid[n.id], Math.ceil(textW(f, 12)) + 2 * PX); });
+    });
     var keys = Object.keys(layers).map(Number).sort(function (a, b) { return a - b; });
     if (lr) {
       var x = 30, maxRows = Math.max.apply(null, keys.map(function (d) { return layers[d].length; })), totalH = maxRows * (BH + GY) - GY;
@@ -201,10 +207,27 @@
       }
     });
     ids.forEach(function (id) {
-      var p = pos[id], col = gcol[node[id].group] || "#8a9099";
-      svg.appendChild(el("rect", { x: p[0], y: p[1], width: wid[id], height: BH, rx: 10, fill: "#2a2a2a", stroke: col, "stroke-width": 2 }));
-      svg.appendChild(el("rect", { x: p[0], y: p[1] + 6, width: 5, height: BH - 12, rx: 2.5, fill: col }));
-      svg.appendChild(el("text", { x: p[0] + wid[id] / 2 + 2, y: p[1] + BH / 2 + 5, "text-anchor": "middle", fill: "#f2f2f2", "font-size": 14, "font-weight": 700 }, node[id].label));
+      var p = pos[id], col = gcol[node[id].group] || "#8a9099", n = node[id], w = wid[id], sh = n.shape || "process";
+      var x0 = p[0], y0 = p[1], x1 = p[0] + w, y1 = p[1] + BH, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, base = { fill: "#2a2a2a", stroke: col, "stroke-width": 2 };
+      function mk2(name, a) { var o = {}, k; for (k in base) o[k] = base[k]; for (k in a) o[k] = a[k]; svg.appendChild(el(name, o)); }
+      if (sh === "decision") mk2("polygon", { points: [cx, y0, x1, cy, cx, y1, x0, cy].join(",").replace(/(\d+(?:\.\d+)?,\d+(?:\.\d+)?),/g, "$1 ") });
+      else if (sh === "io") mk2("polygon", { points: [x0 + 16, y0, x1, y0, x1 - 16, y1, x0, y1].join(",").replace(/(\d+(?:\.\d+)?,\d+(?:\.\d+)?),/g, "$1 ") });
+      else if (sh === "start" || sh === "end") mk2("rect", { x: x0, y: y0, width: w, height: BH, rx: BH / 2 });
+      else if (sh === "actor") mk2("ellipse", { cx: cx, cy: cy, rx: w / 2, ry: BH / 2 });
+      else if (sh === "db") {
+        mk2("path", { d: "M" + x0 + "," + (y0 + 9) + " L" + x0 + "," + (y1 - 9) + " A" + w / 2 + ",9 0 0 0 " + x1 + "," + (y1 - 9) + " L" + x1 + "," + (y0 + 9) + " Z" });
+        mk2("ellipse", { cx: cx, cy: y0 + 9, rx: w / 2, ry: 9 });
+      }
+      else if (sh === "note") mk2("rect", { x: x0, y: y0, width: w, height: BH, fill: "#3a3520" });
+      else if (n.fields && n.fields.length) {
+        mk2("rect", { x: x0, y: y0, width: w, height: BH });
+        svg.appendChild(el("rect", { x: x0, y: y0, width: w, height: 24, fill: col }));
+      }
+      else { mk2("rect", { x: x0, y: y0, width: w, height: BH, rx: 10 }); svg.appendChild(el("rect", { x: x0, y: y0 + 6, width: 5, height: BH - 12, rx: 2.5, fill: col })); }
+      if (n.fields && n.fields.length) {
+        svg.appendChild(el("text", { x: cx, y: y0 + 17, "text-anchor": "middle", fill: "#fff", "font-size": 14, "font-weight": 700 }, n.label));
+        n.fields.forEach(function (f, i) { svg.appendChild(el("text", { x: x0 + 10, y: y0 + 38 + 16 * i, fill: "#e5e5e5", "font-size": 12 }, f)); });
+      } else svg.appendChild(el("text", { x: cx + (sh === "process" ? 2 : 0), y: cy + 5, "text-anchor": "middle", fill: "#f2f2f2", "font-size": 14, "font-weight": 700 }, n.label));
     });
     var lx = 30;
     groups.forEach(function (g) {
@@ -212,7 +235,95 @@
       svg.appendChild(el("text", { x: lx + 18, y: H + 21, fill: "#cfcfcf", "font-size": 13 }, g));
       lx += 18 + textW(g, 13) + 24;
     });
+    svg._geo = { pos: pos, wid: wid, BH: BH };   /* ADDED: used by the draw.io export */
     return svg;
+  }
+
+
+  /* ---------- sequence diagrams (ADDED) ---------- */
+  function sequence(spec) {
+    var parts = spec.participants, msgs = spec.messages, COLW = 170, TOP = 56, ROW = 46;
+    var W = Math.max(420, COLW * parts.length + 40), H = TOP + 70 + ROW * msgs.length + 20;
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": spec.title || "Sequence diagram" });
+    var defs = el("defs", {}), mk = el("marker", { id: "vzArrow2", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" });
+    mk.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: "#c9c9c9" })); defs.appendChild(mk); svg.appendChild(defs);
+    if (spec.title) svg.appendChild(el("text", { x: W / 2, y: 28, "text-anchor": "middle", fill: "#f2f2f2", "font-size": 17, "font-weight": 700 }, spec.title));
+    var x = {}; parts.forEach(function (p, i) { x[p.id] = 20 + COLW * (i + 0.5); });
+    parts.forEach(function (p, i) {
+      var c = PAL[i % 8];
+      svg.appendChild(el("line", { x1: x[p.id], x2: x[p.id], y1: TOP + 36, y2: H - 10, stroke: "#777", "stroke-width": 1, "stroke-dasharray": "5 5" }));
+      svg.appendChild(el("rect", { x: x[p.id] - 70, y: TOP, width: 140, height: 36, rx: 8, fill: "#2a2a2a", stroke: c, "stroke-width": 2 }));
+      svg.appendChild(el("text", { x: x[p.id], y: TOP + 23, "text-anchor": "middle", fill: "#f2f2f2", "font-size": 14, "font-weight": 700 }, p.label));
+    });
+    msgs.forEach(function (m, k) {
+      var y = TOP + 70 + k * ROW, a = x[m.from], b = x[m.to], dash = m.style === "return" ? "6 4" : (m.style === "async" ? "2 3" : "");
+      var at = { fill: "none", stroke: "#c9c9c9", "stroke-width": 2, "marker-end": "url(#vzArrow2)" };
+      if (dash) at["stroke-dasharray"] = dash;
+      if (a === b) {
+        at.d = "M" + a + "," + (y - 8) + " L" + (a + 34) + "," + (y - 8) + " L" + (a + 34) + "," + (y + 8) + " L" + a + "," + (y + 8);
+        svg.appendChild(el("path", at));
+        svg.appendChild(el("text", { x: a + 42, y: y - 3, fill: "#dcdcdc", "font-size": 13 }, m.label));
+      } else {
+        at.d = "M" + a + "," + y + " L" + b + "," + y;
+        svg.appendChild(el("path", at));
+        svg.appendChild(el("text", { x: (a + b) / 2, y: y - 8, "text-anchor": "middle", fill: "#dcdcdc", "font-size": 13 }, m.label));
+      }
+    });
+    svg._geo = { x: x, TOP: TOP, ROW: ROW, H: H };
+    return svg;
+  }
+
+  /* ---------- draw.io export (ADDED): a .drawio file that opens in draw.io / diagrams.net ---------- */
+  function xe(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  var DSTYLE = {
+    process: "rounded=1;whiteSpace=wrap;html=1;arcSize=20;", start: "rounded=1;whiteSpace=wrap;html=1;arcSize=50;", end: "rounded=1;whiteSpace=wrap;html=1;arcSize=50;",
+    decision: "rhombus;whiteSpace=wrap;html=1;", io: "shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;",
+    db: "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;", actor: "ellipse;whiteSpace=wrap;html=1;", note: "shape=note;whiteSpace=wrap;html=1;size=14;"
+  };
+  function drawioXml(spec, svg) {
+    var cells = ['<mxCell id="0"/>', '<mxCell id="1" parent="0"/>'], g = svg._geo || {}, n = 2, idmap = {};
+    if (spec.kind === "diagram") {
+      spec.nodes.forEach(function (nd) {
+        var p = g.pos[nd.id], w = g.wid[nd.id], h = g.BH, id = "n" + (n++), label = nd.label, st = DSTYLE[nd.shape || "process"] || DSTYLE.process;
+        idmap[nd.id] = id;
+        if (nd.fields && nd.fields.length) { label = "<b>" + xe(nd.label) + "</b><hr>" + nd.fields.map(xe).join("<br>"); st = "rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=6;"; cells.push('<mxCell id="' + id + '" value="' + xe(label) + '" style="' + st + '" vertex="1" parent="1"><mxGeometry x="' + Math.round(p[0]) + '" y="' + Math.round(p[1]) + '" width="' + Math.round(w) + '" height="' + Math.round(h) + '" as="geometry"/></mxCell>'); return; }
+        cells.push('<mxCell id="' + id + '" value="' + xe(label) + '" style="' + st + '" vertex="1" parent="1"><mxGeometry x="' + Math.round(p[0]) + '" y="' + Math.round(p[1]) + '" width="' + Math.round(w) + '" height="' + Math.round(h) + '" as="geometry"/></mxCell>');
+      });
+      spec.edges.forEach(function (e) {
+        cells.push('<mxCell id="e' + (n++) + '" value="' + xe(e.label) + '" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" edge="1" parent="1" source="' + idmap[e.from] + '" target="' + idmap[e.to] + '"><mxGeometry relative="1" as="geometry"/></mxCell>');
+      });
+    } else if (spec.kind === "sequence") {
+      spec.participants.forEach(function (p) {
+        var id = "n" + (n++); idmap[p.id] = id;
+        cells.push('<mxCell id="' + id + '" value="' + xe(p.label) + '" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1"><mxGeometry x="' + Math.round(g.x[p.id] - 50) + '" y="' + g.TOP + '" width="100" height="' + (g.H - g.TOP - 10) + '" as="geometry"/></mxCell>');
+      });
+      spec.messages.forEach(function (m, k) {
+        var y = g.TOP + 70 + k * g.ROW, a = g.x[m.from], b = g.x[m.to], dash = m.style === "return" ? "dashed=1;" : "";
+        cells.push('<mxCell id="e' + (n++) + '" value="' + xe(m.label) + '" style="html=1;verticalAlign=bottom;endArrow=block;' + dash + '" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="' + Math.round(a) + '" y="' + y + '" as="sourcePoint"/><mxPoint x="' + Math.round(b === a ? a + 1 : b) + '" y="' + (b === a ? y + 16 : y) + '" as="targetPoint"/></mxGeometry></mxCell>');
+      });
+    }
+    return '<mxfile host="app.diagrams.net"><diagram name="' + xe(spec.title || "Page-1") + '" id="hepozy1"><mxGraphModel dx="1000" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0"><root>' + cells.join("") + '</root></mxGraphModel></diagram></mxfile>';
+  }
+  /* link that opens app.diagrams.net with the drawing already loaded (diagram is packed into the address after #R) */
+  function drawioLink(spec, svg, done) {
+    try {
+      if (typeof CompressionStream === "undefined") return done(null);
+      var bytes = new TextEncoder().encode(encodeURIComponent(drawioXml(spec, svg)));
+      var cs = new CompressionStream("deflate-raw"), w = cs.writable.getWriter();
+      w.write(bytes); w.close();
+      new Response(cs.readable).arrayBuffer().then(function (buf) {
+        var u = new Uint8Array(buf), bin = "";
+        for (var i = 0; i < u.length; i++) bin += String.fromCharCode(u[i]);
+        var url = "https://app.diagrams.net/#R" + encodeURIComponent(btoa(bin));
+        done(url.length < 7500 ? url : null);        /* too long for an address: the download button is used */
+      }).catch(function () { done(null); });
+    } catch (e) { done(null); }
+  }
+  function saveDrawio(spec, svg, name) {
+    try {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([drawioXml(spec, svg)], { type: "application/vnd.jgraph.mxfile" }));
+      a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+    } catch (e) {}
   }
 
   /* ---------- save as PNG ---------- */
@@ -238,15 +349,34 @@
     } catch (e) {}
   }
 
-  function card(spec) {
+  function card(spec, row) {
     var svg;
-    try { svg = spec.kind === "diagram" ? diagram(spec) : chart(spec); } catch (e) { return null; }
+    try { svg = spec.kind === "sequence" ? sequence(spec) : spec.kind === "diagram" ? diagram(spec) : chart(spec); } catch (e) { return null; }  /* CHANGED: sequence */
     var box = document.createElement("div"); box.className = "vz-card"; box.setAttribute("data-vz", "1");
     box.appendChild(svg);
     var bar = document.createElement("div"); bar.className = "vz-bar";
     var b = document.createElement("button"); b.type = "button"; b.className = "vz-save"; b.textContent = "Save picture";
     var nm = (spec.title || (spec.kind === "diagram" ? "diagram" : "chart")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".png";
     b.addEventListener("click", function () { savePng(svg, nm); });
+    if (spec.kind !== "chart") {   /* ADDED: the drawing opens inside draw.io, and can be downloaded */
+      var open = document.createElement("a"); open.className = "vz-save"; open.target = "_blank"; open.rel = "noopener noreferrer";
+      open.textContent = "Open in draw.io"; open.style.cssText = "margin-right:8px;text-decoration:none;display:none;";
+      bar.appendChild(open);
+      drawioLink(spec, svg, function (url) {
+        if (!url) return;
+        open.href = url; open.style.display = "";
+        var bub = row && row.querySelector(".msg-bubble");      /* the link is also written INSIDE the reply, in blue */
+        if (bub) {
+          var p = document.createElement("p"); p.style.margin = "10px 0 0";
+          var a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+          a.textContent = "Open this diagram in draw.io: " + (spec.title || "your diagram");
+          p.appendChild(a); bub.appendChild(p);
+        }
+      });
+      var dbn = document.createElement("button"); dbn.type = "button"; dbn.className = "vz-save"; dbn.style.marginRight = "8px"; dbn.textContent = "Download .drawio";
+      dbn.addEventListener("click", function () { saveDrawio(spec, svg, nm.replace(/\.png$/, ".drawio")); });
+      bar.appendChild(dbn);
+    }
     bar.appendChild(b); box.appendChild(bar);
     return box;
   }
@@ -257,7 +387,7 @@
     injectCss();
     var bubble = row.querySelector(".msg-bubble"), anchor = bubble ? bubble.nextSibling : null;
     specs[id].forEach(function (s) {
-      var c = card(s);
+      var c = card(s, row);
       if (c) row.insertBefore(c, anchor);
     });
     if (typeof scrollBottom === "function") scrollBottom();
@@ -268,7 +398,7 @@
 
   function remember(id, list) {
     if (!id || !Array.isArray(list) || !list.length) return;
-    specs[id] = list.filter(function (s) { return s && (s.kind === "chart" || s.kind === "diagram"); });
+    specs[id] = list.filter(function (s) { return s && (s.kind === "chart" || s.kind === "diagram" || s.kind === "sequence"); });
     scan();
   }
 
