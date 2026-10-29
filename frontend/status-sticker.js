@@ -15,15 +15,18 @@
     return rows.length ? rows[rows.length - 1].textContent || "" : "";
   }
   function attach(bubble) {
-    if (bubble.querySelector(".hp-status")) return;
+    var row = bubble.closest(".msg-row") || bubble.parentNode;
+    if (row.querySelector(".hp-status")) return;
     var words = VIS_RE.test(lastUserText()) ? VISUAL : BASE, i = 0;
-    var s = document.createElement("span"); s.className = "hp-status"; s.textContent = words[0] + "…";
-    bubble.appendChild(s);
+    var s = document.createElement("span"); s.className = "hp-status"; s.textContent = words[0] + "\u2026";
+    s.style.setProperty("align-self", "flex-start");
+    row.appendChild(s);                     /* beside the bubble, not inside it: home.js rewrites the bubble when its video fails */
     var t = setInterval(function () {
-      if (!document.body.contains(s)) { clearInterval(t); return; }
+      if (!document.body.contains(row)) { clearInterval(t); return; }          /* the answer arrived: the waiting row is gone */
+      if (!s.parentNode) row.appendChild(s);
       i = Math.min(i + 1, words.length - 1);              /* stays on the last word until the answer arrives */
       s.classList.add("fade");
-      setTimeout(function () { s.textContent = words[i] + "…"; s.classList.remove("fade"); }, 220);
+      setTimeout(function () { s.textContent = words[i] + "\u2026"; s.classList.remove("fade"); }, 220);
     }, 1400);
   }
   function scan() { document.querySelectorAll(".msg-bubble.typing").forEach(attach); }
