@@ -551,9 +551,15 @@ def enqueue_crawl_url(url: str) -> None:
     except Exception as e:
         print(f"[enqueue_crawl_url] failed to enqueue {url}: {e}")
 
-REQUEST_LIMIT = 50
-TOKEN_LIMIT = 20000
+REQUEST_LIMIT = int(os.environ.get("QUOTA_MAX_MESSAGES", 200))
+TOKEN_LIMIT = int(os.environ.get("QUOTA_MAX_TOKENS", 100000))
 REQUEST_LIMIT_WINDOW_HOURS = 5
+
+
+def _get_quota_limits() -> tuple[int, int]:
+    req_limit = int(os.environ.get("QUOTA_MAX_MESSAGES", REQUEST_LIMIT))
+    tok_limit = int(os.environ.get("QUOTA_MAX_TOKENS", TOKEN_LIMIT))
+    return req_limit, tok_limit
 
 
 def check_request_quota(user_id: str) -> dict:
@@ -569,6 +575,8 @@ def check_request_quota(user_id: str) -> dict:
     Fails open (allowed=True) on error - a broken quota check should never
     itself block a real user.
     """
+    if os.environ.get("LOCAL_DEV") == "1":
+        return {"allowed": True, "bypassed": True}
     from datetime import datetime, timedelta, timezone
 
     window = timedelta(hours=REQUEST_LIMIT_WINDOW_HOURS)
@@ -591,9 +599,11 @@ def check_request_quota(user_id: str) -> dict:
             .order("created_at", desc=False)
             .execute()
         )
+        request_limit, token_limit = _get_quota_limits()
+
         rows = result.data or []
         if not rows:
-            return {"allowed": True, "remaining": REQUEST_LIMIT, "reset_at": None}
+            return {"allowed": True, "remaining": request_limit, "reset_at": None}
 
         last = _when(rows[-1])  # newest message of any kind
 
@@ -603,7 +613,7 @@ def check_request_quota(user_id: str) -> dict:
         # token counts live on assistant rows, not user rows - sum across everything
         burst_tokens = sum((r.get("input_tokens") or 0) + (r.get("output_tokens") or 0) for r in burst)
 
-        used_up = burst_requests >= REQUEST_LIMIT or burst_tokens >= TOKEN_LIMIT
+        used_up = burst_requests >= request_limit or burst_tokens >= token_limit
         unlock_at = last + window
 
         if used_up and now < unlock_at:
@@ -613,11 +623,12 @@ def check_request_quota(user_id: str) -> dict:
         recent = [r for r in rows if _when(r) >= now - window]
         used_requests = sum(1 for r in recent if r["role"] == "user")
         used_tokens = sum((r.get("input_tokens") or 0) + (r.get("output_tokens") or 0) for r in recent)
-        remaining = min(REQUEST_LIMIT - used_requests, TOKEN_LIMIT - used_tokens)
+        remaining = min(request_limit - used_requests, token_limit - used_tokens)
         return {"allowed": True, "remaining": max(0, remaining), "reset_at": None}
     except Exception as e:
         print(f"[quota] check failed, failing open: {e}")
-        return {"allowed": True, "remaining": REQUEST_LIMIT, "reset_at": None}
+        req_limit, _ = _get_quota_limits()
+        return {"allowed": True, "remaining": req_limit, "reset_at": None}
 
 
 # ADDED: asking for something local ("near me", "emergency number", ...)
@@ -1365,8 +1376,22 @@ def get_quota(uid: str = Depends(current_user)):
     "23/50 messages, 12,400/20,000 tokens" display in the frontend, or
     for checking a user's status directly without waiting for them to
     actually hit the limit.
+    When LOCAL_DEV=1, bypasses quota tracking entirely and reports unlimited/bypassed status.
     """
+    if os.environ.get("LOCAL_DEV") == "1":
+        return {
+            "bypassed": True,
+            "unlimited": True,
+            "requests_used": 0,
+            "requests_limit": None,
+            "tokens_used": 0,
+            "tokens_limit": None,
+            "window_hours": REQUEST_LIMIT_WINDOW_HOURS,
+        }
+
     from datetime import datetime, timedelta, timezone
+
+    request_limit, token_limit = _get_quota_limits()
 
     window_start = (datetime.now(timezone.utc) - timedelta(hours=REQUEST_LIMIT_WINDOW_HOURS)).isoformat()
 
@@ -1384,10 +1409,12 @@ def get_quota(uid: str = Depends(current_user)):
         used_tokens = sum((r.get("input_tokens") or 0) + (r.get("output_tokens") or 0) for r in result.data)
 
         return {
+            "bypassed": False,
+            "unlimited": False,
             "requests_used": used_requests,
-            "requests_limit": REQUEST_LIMIT,
+            "requests_limit": request_limit,
             "tokens_used": used_tokens,
-            "tokens_limit": TOKEN_LIMIT,
+            "tokens_limit": token_limit,
             "window_hours": REQUEST_LIMIT_WINDOW_HOURS,
         }
     except Exception as e:

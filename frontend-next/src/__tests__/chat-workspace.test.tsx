@@ -510,6 +510,35 @@ describe('ChatWorkspace Component Integration', () => {
     expect(screen.getByRole('button', { name: /attach files/i })).not.toBeDisabled();
   });
 
+  it('ensures quota warning chips and modal barriers remain dormant when local dev bypass is active', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([]);
+
+    vi.spyOn(chatApi, 'sendChatMessage').mockResolvedValueOnce({
+      reply: 'Local dev response without quota restrictions.',
+      conversation_id: 'conv-1',
+      assistant_message_id: 'asst-bypassed-1',
+      needs_clarification: false,
+      quota_exceeded: false,
+      quota_reset_at: null,
+    });
+
+    render(<ChatWorkspace conversationId="conv-1" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Query in local dev{enter}');
+
+    expect(await screen.findByText('Local dev response without quota restrictions.')).toBeInTheDocument();
+
+    // Quota Exceeded modal is NOT displayed
+    expect(screen.queryByRole('heading', { name: /message quota exceeded/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('quota-dialog-backdrop')).not.toBeInTheDocument();
+
+    // Input and send controls remain active and enabled
+    expect(screen.getByRole('textbox')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /attach files/i })).not.toBeDisabled();
+  });
+
   describe('Medium Max-Width Centered Container Alignment (#21)', () => {
     it('wraps the message stream scroll viewport in a centered medium max-width container with mx-auto max-w-4xl', async () => {
       vi.spyOn(chatApi, 'getChatHistory').mockResolvedValueOnce([
