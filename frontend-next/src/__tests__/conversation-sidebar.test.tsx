@@ -907,6 +907,56 @@ describe('ConversationSidebar Component', () => {
 
       expect(document.cookie).toContain('hepozy_sidebar_collapsed=true');
     });
+
+    it('completely omits conversation history skeletons and search bar when defaultCollapsed is true while loading', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          defaultCollapsed={true}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      // Verify skeletons and search input are not rendered in collapsed state
+      expect(screen.queryByTestId('conversation-skeletons')).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/search conversations/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand sidebar/i })).toBeInTheDocument();
+    });
+
+    it('tags all expanded-only elements in server markup with data-sidebar-expanded-only to enable CSS suppression before hydration', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      const Wrapper = createWrapper();
+      const serverHtml = renderToString(
+        <Wrapper>
+          <ConversationSidebar
+            activeId={null}
+            onSelectConversation={vi.fn()}
+            onNewChat={vi.fn()}
+            defaultCollapsed={false}
+          />
+        </Wrapper>
+      );
+
+      // Verify server HTML marks expanded content with data-sidebar-expanded-only
+      expect(serverHtml).toContain('data-sidebar-expanded-only="true"');
+      expect(serverHtml).toContain('data-testid="conversation-skeletons"');
+      expect(serverHtml).toContain('placeholder="Search conversations..."');
+    });
   });
 });
 

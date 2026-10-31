@@ -157,7 +157,12 @@ export function ConversationSidebar({
       aria-label="Conversation Sidebar"
     >
       {/* Brand & Action Header */}
-      <div className={cn('flex flex-col gap-3 p-3 border-b border-border/70', collapsed && 'items-center')}>
+      <div
+        className={cn(
+          'flex flex-col gap-3 p-3 border-b border-border/70',
+          collapsed && 'items-center'
+        )}
+      >
         {collapsed ? (
           <Tooltip>
             <TooltipTrigger
@@ -189,7 +194,10 @@ export function ConversationSidebar({
             <TooltipContent side="right">Expand sidebar</TooltipContent>
           </Tooltip>
         ) : (
-          <div className="flex items-center justify-between px-1 py-0.5 w-full">
+          <div
+            className="flex items-center justify-between px-1 py-0.5 w-full"
+            data-sidebar-expanded-only="true"
+          >
             <div className="flex items-center gap-2.5 overflow-hidden" title="Hepozy">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border/50 shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -249,6 +257,7 @@ export function ConversationSidebar({
             onClick={onNewChat}
             className="w-full justify-start gap-2 shadow-sm cursor-pointer"
             size="sm"
+            data-sidebar-expanded-only="true"
           >
             <Plus className="h-4 w-4" />
             <span>New Chat</span>
@@ -257,7 +266,7 @@ export function ConversationSidebar({
 
         {/* Real-time search filter */}
         {!collapsed && (
-          <div className="relative w-full">
+          <div className="relative w-full" data-sidebar-expanded-only="true">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               value={searchQuery}
@@ -271,7 +280,10 @@ export function ConversationSidebar({
 
       {/* Conversation History List */}
       {!collapsed ? (
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+        <div
+          className="flex-1 overflow-y-auto px-2 py-3 space-y-1"
+          data-sidebar-expanded-only="true"
+        >
           <div className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent
           </div>
@@ -377,7 +389,6 @@ export function ConversationSidebar({
         <div className="flex-1" aria-hidden="true" />
       )}
 
-
       {/* Footer Controls: User Profile */}
       <div
         className={cn(
@@ -389,11 +400,13 @@ export function ConversationSidebar({
         {collapsed ? (
           <UserProfileDropdown onOpenSettings={onOpenSettings} showName={false} />
         ) : (
-          <UserProfileDropdown
-            onOpenSettings={onOpenSettings}
-            showName={true}
-            className="w-full"
-          />
+          <div className="w-full" data-sidebar-expanded-only="true">
+            <UserProfileDropdown
+              onOpenSettings={onOpenSettings}
+              showName={true}
+              className="w-full"
+            />
+          </div>
         )}
       </div>
     </aside>

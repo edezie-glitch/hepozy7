@@ -31,7 +31,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var v=localStorage.getItem('hepozy_sidebar_collapsed');if(v==='true'){document.documentElement.setAttribute('data-sidebar-collapsed','true');}}catch(e){}`,
+            __html: `try{var v=localStorage.getItem('hepozy_sidebar_collapsed');if(v==='true'||(!v&&document.cookie.indexOf('hepozy_sidebar_collapsed=true')!==-1)){document.documentElement.setAttribute('data-sidebar-collapsed','true');}}catch(e){}`,
           }}
         />
       </head>

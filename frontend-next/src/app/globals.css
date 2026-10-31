@@ -502,8 +502,13 @@ body {
 }
 
 /* Sidebar FOUC Prevention */
-html[data-sidebar-collapsed="true"]:not([data-sidebar-mounted="true"]) aside[aria-label="Conversation Sidebar"] {
+html[data-sidebar-collapsed="true"]:not([data-sidebar-mounted="true"]) aside[aria-label="Conversation Sidebar"]:not(.w-full) {
   width: 4rem !important;
   transition: none !important;
+}
+
+html[data-sidebar-collapsed="true"]:not([data-sidebar-mounted="true"]) aside[aria-label="Conversation Sidebar"]:not(.w-full) [data-sidebar-expanded-only="true"],
+html[data-sidebar-collapsed="true"]:not([data-sidebar-mounted="true"]) aside[aria-label="Conversation Sidebar"]:not(.w-full) [data-testid="conversation-skeletons"] {
+  display: none !important;
 }
 
