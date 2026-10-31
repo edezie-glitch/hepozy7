@@ -12,7 +12,7 @@ Hepozy is an AI workspace assistant built with **FastAPI**, **Supabase**, and mu
 - **Intelligent Model Routing**: Routes tasks based on complexity and format requirements (Groq `openai/gpt-oss-20b`/`120b` and Gemini `gemini-flash-latest`) with automatic provider failover.
 - **RAG & arXiv Research Fallback**: Vector similarity retrieval powered by Supabase `pgvector` and Gemini embeddings (768-dim), with automatic live arXiv paper search and ingestion for academic queries.
 - **Background Crawler Pipeline**: Message-queue worker using Supabase `pgmq` (`crawl_tasks` and `embed_tasks`) for scheduled web scraping and document chunking.
-- **Safety & Rate Limiting**: Llama Prompt Guard injection detection, output safeguard checks, and configurable user quota management (default 200 messages / 100k tokens per 5 hours, with local dev bypass).
+- **Safety & Rate Limiting**: Llama Prompt Guard injection detection, output safeguard checks, and configurable user quota management (default 50 messages / 20k tokens per 5 hours, with local dev bypass).
 
 ---
 
@@ -92,8 +92,8 @@ OWNER_ADMIN_KEY=your-admin-secret
 ENABLE_DOCS=1
 ALLOWED_ORIGINS=*
 LOCAL_DEV=1                     # Set to 1 to bypass request quota and rate locks during local development
-QUOTA_MAX_MESSAGES=200          # Message quota limit per 5-hour window (default: 200)
-QUOTA_MAX_TOKENS=100000         # Token quota limit per 5-hour window (default: 100000)
+QUOTA_MAX_MESSAGES=50           # Message quota limit per 5-hour window (default: 50)
+QUOTA_MAX_TOKENS=20000          # Token quota limit per 5-hour window (default: 20000)
 
 # Bot Guard & Rate Limiting (Optional)
 BOT_HEAVY_PER_MIN=40            # Limit for heavy endpoints (POST /chat, /search, POST /auth)

@@ -551,8 +551,8 @@ def enqueue_crawl_url(url: str) -> None:
     except Exception as e:
         print(f"[enqueue_crawl_url] failed to enqueue {url}: {e}")
 
-REQUEST_LIMIT = int(os.environ.get("QUOTA_MAX_MESSAGES", 200))
-TOKEN_LIMIT = int(os.environ.get("QUOTA_MAX_TOKENS", 100000))
+REQUEST_LIMIT = int(os.environ.get("QUOTA_MAX_MESSAGES", 50))
+TOKEN_LIMIT = int(os.environ.get("QUOTA_MAX_TOKENS", 20000))
 REQUEST_LIMIT_WINDOW_HOURS = 5
 
 

@@ -22,7 +22,7 @@ class TestRequestQuota(unittest.TestCase):
 
     @patch("main._supabase")
     def test_default_production_limits(self, mock_supabase):
-        """Default production message and token quota thresholds are 200 messages and 100k tokens."""
+        """Default production message and token quota thresholds are 50 messages and 20k tokens."""
         import main
         from main import check_request_quota
 
@@ -36,9 +36,9 @@ class TestRequestQuota(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True):
             result = check_request_quota("user-prod-test")
 
-        self.assertEqual(main.REQUEST_LIMIT, 200)
-        self.assertEqual(main.TOKEN_LIMIT, 100000)
-        self.assertEqual(result, {"allowed": True, "remaining": 200, "reset_at": None})
+        self.assertEqual(main.REQUEST_LIMIT, 50)
+        self.assertEqual(main.TOKEN_LIMIT, 20000)
+        self.assertEqual(result, {"allowed": True, "remaining": 50, "reset_at": None})
 
     @patch("main._supabase")
     def test_configurable_limits_via_env(self, mock_supabase):
@@ -96,7 +96,7 @@ class TestRequestQuota(unittest.TestCase):
 
         env = dict(os.environ)
         env.pop("LOCAL_DEV", None)
-        env["QUOTA_MAX_MESSAGES"] = "200"
+        env["QUOTA_MAX_MESSAGES"] = "50"
         env["QUOTA_MAX_TOKENS"] = "1000"
 
         with patch.dict(os.environ, env, clear=True):
