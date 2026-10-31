@@ -500,3 +500,10 @@ body {
 .token.variable {
   color: var(--syntax-variable);
 }
+
+/* Sidebar FOUC Prevention */
+html[data-sidebar-collapsed="true"]:not([data-sidebar-mounted="true"]) aside[aria-label="Conversation Sidebar"] {
+  width: 4rem !important;
+  transition: none !important;
+}
+

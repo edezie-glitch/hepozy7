@@ -20,12 +20,20 @@ import { cn } from '@/lib/utils';
 const STORAGE_KEY = 'hepozy_sidebar_collapsed';
 const EVENT_NAME = 'hepozy-sidebar-collapse';
 
-function getSidebarCollapsedSnapshot(): boolean {
-  if (typeof window === 'undefined') return false;
+function getSidebarCollapsedSnapshot(): boolean | null {
+  if (typeof window === 'undefined') return null;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === 'true';
+    const item = window.localStorage.getItem(STORAGE_KEY);
+    if (item !== null) {
+      return item === 'true';
+    }
+    const match = document.cookie.match(new RegExp(`(?:^|; )${STORAGE_KEY}=([^;]*)`));
+    if (match) {
+      return match[1] === 'true';
+    }
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -42,6 +50,7 @@ function subscribeToSidebarState(callback: () => void) {
 function setStoredSidebarCollapsed(value: boolean) {
   try {
     window.localStorage.setItem(STORAGE_KEY, String(value));
+    document.cookie = `${STORAGE_KEY}=${value}; path=/; max-age=31536000; SameSite=Lax`;
     window.dispatchEvent(new Event(EVENT_NAME));
   } catch {
     // ignore storage access errors
@@ -70,11 +79,32 @@ export function ConversationSidebar({
   onToggleCollapse,
   className,
 }: ConversationSidebarProps) {
-  const persistedCollapsed = React.useSyncExternalStore(
+  const rawCollapsed = React.useSyncExternalStore(
     subscribeToSidebarState,
     getSidebarCollapsedSnapshot,
     () => defaultCollapsed
   );
+  const persistedCollapsed = rawCollapsed ?? defaultCollapsed;
+
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasMounted(true);
+    try {
+      document.documentElement.setAttribute('data-sidebar-mounted', 'true');
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored === 'true') {
+        document.documentElement.setAttribute('data-sidebar-collapsed', 'true');
+      } else if (stored === 'false') {
+        document.documentElement.removeAttribute('data-sidebar-collapsed');
+      }
+      if (stored !== null && !document.cookie.includes(`${STORAGE_KEY}=`)) {
+        document.cookie = `${STORAGE_KEY}=${stored}; path=/; max-age=31536000; SameSite=Lax`;
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }, []);
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const { data: conversations = [], isLoading } = useConversations();
@@ -86,6 +116,11 @@ export function ConversationSidebar({
 
   const handleToggleCollapse = () => {
     const next = !collapsed;
+    if (next) {
+      document.documentElement.setAttribute('data-sidebar-collapsed', 'true');
+    } else {
+      document.documentElement.removeAttribute('data-sidebar-collapsed');
+    }
     if (!isControlled) {
       setStoredSidebarCollapsed(next);
     }
@@ -114,7 +149,8 @@ export function ConversationSidebar({
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-r border-border bg-sidebar transition-all duration-300 ease-in-out select-none overflow-hidden',
+        'flex h-full flex-col border-r border-border bg-sidebar select-none overflow-hidden',
+        hasMounted && 'transition-all duration-300 ease-in-out',
         collapsed ? 'w-16' : 'w-64',
         className
       )}

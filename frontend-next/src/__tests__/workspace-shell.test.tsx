@@ -480,5 +480,21 @@ describe('WorkspaceShell Component', () => {
       expect(textarea).toHaveValue('Direct query prompt without clicking');
     });
   });
+
+  describe('Ticket 37 (#46): WorkspaceShell Sidebar Persistence and Default Collapsed', () => {
+    it('forwards defaultCollapsed={true} to ConversationSidebar to prevent initial expanded flash', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      const { container } = renderWithProviders(<WorkspaceShell defaultCollapsed={true} />);
+
+      const aside = container.querySelector('aside');
+      expect(aside).toHaveClass('w-16');
+      expect(aside).not.toHaveClass('w-64');
+    });
+  });
 });
 

@@ -28,6 +28,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${sora.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var v=localStorage.getItem('hepozy_sidebar_collapsed');if(v==='true'){document.documentElement.setAttribute('data-sidebar-collapsed','true');}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground transition-colors">
         <QueryProvider>
           <ThemeProvider

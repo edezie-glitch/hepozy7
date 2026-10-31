@@ -11,7 +11,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MessageSquare, FileText, Search, X, Menu } from 'lucide-react';
 
-export function WorkspaceShell() {
+interface WorkspaceShellProps {
+  defaultCollapsed?: boolean;
+}
+
+export function WorkspaceShell({ defaultCollapsed = false }: WorkspaceShellProps = {}) {
   const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -54,6 +58,7 @@ export function WorkspaceShell() {
           activeId={activeConversationId}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewChat}
+          defaultCollapsed={defaultCollapsed}
           onOpenSettings={() => setSettingsOpen(true)}
         />
       </div>

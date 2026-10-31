@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
@@ -29,6 +30,7 @@ describe('ConversationSidebar Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.localStorage.clear();
+    document.cookie = 'hepozy_sidebar_collapsed=; max-age=0; path=/';
 
     const mockSupabase = {
       auth: {
@@ -798,5 +800,114 @@ describe('ConversationSidebar Component', () => {
       expect(deleteBtn).toHaveFocus();
     });
   });
+
+  describe('Ticket 37 (#46): Prevent Sidebar Flash of Expanded State and Hydration Animation on Page Refresh', () => {
+    it('renders in collapsed state without transition animation on initial server markup when defaultCollapsed is true', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      const Wrapper = createWrapper();
+      const serverHtml = renderToString(
+        <Wrapper>
+          <ConversationSidebar
+            activeId={null}
+            onSelectConversation={vi.fn()}
+            onNewChat={vi.fn()}
+            defaultCollapsed={true}
+          />
+        </Wrapper>
+      );
+
+      // Verify server HTML contains collapsed width (w-16) and omits transition-all on aside to prevent closing animation on hydration
+      const asideClassMatch = serverHtml.match(/<aside[^>]+class="([^"]+)"/);
+      expect(asideClassMatch?.[1]).toBeDefined();
+      expect(asideClassMatch?.[1]).toContain('w-16');
+      expect(asideClassMatch?.[1]).not.toContain('w-64');
+      expect(asideClassMatch?.[1]).not.toContain('transition-all');
+    });
+
+    it('renders in collapsed state when defaultCollapsed is true and enables transition after mount', () => {
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      const { container } = render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+          defaultCollapsed={true}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      const aside = container.querySelector('aside');
+      expect(aside).toHaveClass('w-16');
+      expect(aside).not.toHaveClass('w-64');
+      // Post-mount on client, transition class is attached for smooth interactive toggling
+      expect(aside).toHaveClass('transition-all');
+    });
+
+    it('persists sidebar collapse to both localStorage and document.cookie when toggled', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      // Collapse the sidebar
+      const toggleBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+      await user.click(toggleBtn);
+
+      expect(window.localStorage.getItem('hepozy_sidebar_collapsed')).toBe('true');
+      expect(document.cookie).toContain('hepozy_sidebar_collapsed=true');
+
+      // Expand the sidebar
+      const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+      await user.click(expandBtn);
+
+      expect(window.localStorage.getItem('hepozy_sidebar_collapsed')).toBe('false');
+      expect(document.cookie).toContain('hepozy_sidebar_collapsed=false');
+    });
+
+    it('synchronizes document.cookie on mount if localStorage is already set but cookie is absent', () => {
+      window.localStorage.setItem('hepozy_sidebar_collapsed', 'true');
+      // Clear cookie explicitly
+      document.cookie = 'hepozy_sidebar_collapsed=; max-age=0; path=/';
+
+      vi.spyOn(conversationsHooks, 'useConversations').mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+      } as unknown as ReturnType<typeof conversationsHooks.useConversations>);
+
+      render(
+        <ConversationSidebar
+          activeId={null}
+          onSelectConversation={vi.fn()}
+          onNewChat={vi.fn()}
+        />,
+        { wrapper: createWrapper() }
+      );
+
+      expect(document.cookie).toContain('hepozy_sidebar_collapsed=true');
+    });
+  });
 });
+
 
